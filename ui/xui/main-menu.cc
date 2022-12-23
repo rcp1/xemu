@@ -625,7 +625,7 @@ void NetworkInterfaceManager::Refresh(void)
     }
 
 #if defined(_WIN32)
-    if (true) {
+    if (pcap_load_library()) {
         m_failed_to_load_lib = true;
         return;
     }
