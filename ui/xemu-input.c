@@ -34,6 +34,8 @@
 
 #include "sysemu/blockdev.h"
 
+#include "openrgb.h"
+
 // #define DEBUG_INPUT
 
 #ifdef DEBUG_INPUT
@@ -135,6 +137,8 @@ void xemu_input_init(void)
         exit(1);
     }
 
+    openrgb_connect();
+
     // Create the keyboard input (always first)
     ControllerState *new_con = malloc(sizeof(ControllerState));
     memset(new_con, 0, sizeof(ControllerState));
@@ -212,7 +216,7 @@ void xemu_input_init(void)
     sdl_sbc_kbd_scancode_map[29] = g_config.input.keyboard_sbc_scancode_map.com2;
     sdl_sbc_kbd_scancode_map[30] = g_config.input.keyboard_sbc_scancode_map.com3;
     sdl_sbc_kbd_scancode_map[31] = g_config.input.keyboard_sbc_scancode_map.com4;
-    sdl_sbc_kbd_scancode_map[32] = g_config.input.keyboard_sbc_scancode_map.com5;         
+    sdl_sbc_kbd_scancode_map[32] = g_config.input.keyboard_sbc_scancode_map.com5;
     sdl_sbc_kbd_scancode_map[33] = g_config.input.keyboard_sbc_scancode_map.sight_change;
     sdl_sbc_kbd_scancode_map[34] = g_config.input.keyboard_sbc_scancode_map.filt_control_system;
     sdl_sbc_kbd_scancode_map[35] = g_config.input.keyboard_sbc_scancode_map.oxygen_supply_system;
@@ -493,7 +497,7 @@ void xemu_input_update_sdl_kbd_controller_state(ControllerState *state)
             state->sbc.buttons |= (1ULL << i);
     }
 
-    const uint64_t toggles[5] = { 
+    const uint64_t toggles[5] = {
         SBC_BUTTON_FILT_CONTROL_SYSTEM,
         SBC_BUTTON_OXYGEN_SUPPLY_SYSTEM,
         SBC_BUTTON_FUEL_FLOW_RATE,
@@ -612,7 +616,7 @@ void xemu_input_update_sdl_controller_state(ControllerState *state)
     state->gp.axis[CONTROLLER_AXIS_RSTICK_Y] = -1 - state->gp.axis[CONTROLLER_AXIS_RSTICK_Y];
 
     // xemu_input_print_controller_state(state);
-    
+
     // Update the SBC too, just in case
     const uint64_t sdl_button_map_sbc[8][2] = {
         { SDL_CONTROLLER_BUTTON_A, SBC_BUTTON_MAIN_WEAPON },
@@ -635,7 +639,7 @@ void xemu_input_update_sdl_controller_state(ControllerState *state)
             state->sbc.buttons |= sdl_button_map_sbc[i][1];
     }
 
-    const uint64_t toggles[5] = { 
+    const uint64_t toggles[5] = {
         SBC_BUTTON_FILT_CONTROL_SYSTEM,
         SBC_BUTTON_OXYGEN_SUPPLY_SYSTEM,
         SBC_BUTTON_FUEL_FLOW_RATE,

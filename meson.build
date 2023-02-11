@@ -709,6 +709,24 @@ if not get_option('slirp').auto() or have_system
   endif
 endif
 
+openrgb = not_found
+if not get_option('openrgb').auto() or have_system
+  openrgb_build_cmd = [find_program('scripts/build-liborgb.sh'),
+                       meson.current_source_dir() / 'OpenRGB-cppSDK',
+                       targetos]
+  message('OPENRGB BUILD', meson.current_source_dir() / 'OpenRGB-cppSDK')
+  openrgb_build = custom_target('liborgb_build.log',
+                                output: 'liborgb_build.log',
+                                command: openrgb_build_cmd,
+                                capture: true,
+                                build_by_default: true,
+                                build_always_stale: true)
+  openrgb = declare_dependency(link_args: ['liborgbsdk.a'],
+                               include_directories: 'OpenRGB-cppSDK/include')
+
+  genh += openrgb_build
+endif
+
 vde = not_found
 if not get_option('vde').auto() or have_system or have_tools
   vde = cc.find_library('vdeplug', has_headers: ['libvdeplug.h'],
@@ -1585,7 +1603,6 @@ if not get_option('libusb').auto() or have_system
                       version: '>=1.0.13', method: 'pkg-config',
                       kwargs: static_kwargs)
 endif
-
 libpmem = not_found
 if not get_option('libpmem').auto() or have_system
   libpmem = dependency('libpmem', required: get_option('libpmem'),
@@ -1972,6 +1989,7 @@ endif
 config_host_data.set('CONFIG_SNAPPY', snappy.found())
 config_host_data.set('CONFIG_TPM', have_tpm)
 config_host_data.set('CONFIG_USB_LIBUSB', libusb.found())
+config_host_data.set('CONFIG_OPENRGB', openrgb.found())
 config_host_data.set('CONFIG_VDE', vde.found())
 config_host_data.set('CONFIG_VHOST_NET', have_vhost_net)
 config_host_data.set('CONFIG_VHOST_NET_USER', have_vhost_net_user)
@@ -4081,6 +4099,7 @@ summary_info += {'rbd support':       rbd}
 summary_info += {'smartcard support': cacard}
 summary_info += {'U2F support':       u2f}
 summary_info += {'libusb':            libusb}
+summary_info += {'OpenRGB support':   openrgb.found()}
 summary_info += {'usb net redir':     usbredir}
 summary_info += {'OpenGL support (epoxy)': opengl}
 summary_info += {'Vulkan support':    vulkan}

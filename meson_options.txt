@@ -165,6 +165,8 @@ option('libusb', type : 'feature', value : 'auto',
        description: 'libusb support for USB passthrough')
 option('linux_aio', type : 'feature', value : 'auto',
        description: 'Linux AIO support')
+option('openrgb', type : 'feature', value : 'enabled',
+       description: 'Hardware RGB lighting support')
 option('linux_io_uring', type : 'feature', value : 'auto',
        description: 'Linux io_uring support')
 option('lzfse', type : 'feature', value : 'auto',

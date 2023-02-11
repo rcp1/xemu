@@ -97,3 +97,6 @@
 [submodule "thirdparty/SPIRV-Reflect"]
 	path = thirdparty/SPIRV-Reflect
 	url = https://github.com/KhronosGroup/SPIRV-Reflect
+[submodule "OpenRGB-cppSDK"]
+	path = OpenRGB-cppSDK
+	url = git@github.com:Youda008/OpenRGB-cppSDK.git
