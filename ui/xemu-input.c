@@ -19,6 +19,7 @@
 
 
 #include "qemu/osdep.h"
+#include "hw/usb.h"
 #include "hw/qdev-core.h"
 #include "hw/qdev-properties.h"
 #include "qapi/error.h"
@@ -85,6 +86,8 @@ ControllerStateList available_controllers =
     QTAILQ_HEAD_INITIALIZER(available_controllers);
 
 ControllerState *bound_controllers[4] = { NULL, NULL, NULL, NULL };
+LibusbDevice *bound_libusb_devices[4] = { NULL, NULL, NULL, NULL };
+const char *all_drivers[5] = { DRIVER_DUKE, DRIVER_S, DRIVER_SB, DRIVER_FIGHT_STICK, DRIVER_USB_PASSTHROUGH };
 const char *bound_drivers[4] = { DRIVER_DUKE, DRIVER_DUKE, DRIVER_DUKE, DRIVER_DUKE };
 int test_mode;
 
@@ -108,33 +111,19 @@ static int sdl_sbc_kbd_scancode_map[56];
 const char *get_bound_driver(int port) {
     assert(port >= 0 && port <= 3);
     const char *driver = NULL;    
-    switch(port) {
-        case 0:
-            driver = g_config.input.bindings.port1_driver;
-            break;
-        case 1:
-            driver = g_config.input.bindings.port2_driver;
-            break;
-        case 2:
-            driver = g_config.input.bindings.port3_driver;
-            break;
-        case 3:
-            driver = g_config.input.bindings.port4_driver;
-            break;
-    }
+
+    driver = *port_index_to_driver_settings_key_map[port];
+
     if(driver == NULL)
         return DRIVER_DUKE; // Shouldn't be possible
     if(strlen(driver) == 0)
         return DRIVER_DUKE;
-    if(strcmp(driver, DRIVER_DUKE) == 0)
-        return DRIVER_DUKE;
-    if(strcmp(driver, DRIVER_S) == 0)
-        return DRIVER_S;
-    if(strcmp(driver, DRIVER_SB) == 0)
-        return DRIVER_SB;
-    if(strcmp(driver, DRIVER_FIGHT_STICK) == 0)
-        return DRIVER_FIGHT_STICK;
 
+    for(int i = 0; i < 5; i++) {
+        if(strcmp(driver, all_drivers[i]) == 0)
+            return all_drivers[i];
+    }
+    
     // Shouldn't be possible
     assert(false);
 }
@@ -710,6 +699,77 @@ ControllerState *xemu_input_get_bound(int index)
     return bound_controllers[index];
 }
 
+LibusbDevice *xemu_input_get_bound_device(int index)
+{
+    return bound_libusb_devices[index];
+}
+
+DeviceState *xemu_bind_usb_hub(int num_ports, const char *port)
+{
+    QDict *usbhub_qdict = qdict_new();
+    qdict_put_str(usbhub_qdict, "driver", "usb-hub");
+    qdict_put_str(usbhub_qdict, "port", port);
+    qdict_put_int(usbhub_qdict, "ports", num_ports);
+    QemuOpts *usbhub_opts = qemu_opts_from_qdict(qemu_find_opts("device"), usbhub_qdict, &error_abort);
+    DeviceState *usbhub_dev = qdev_device_add(usbhub_opts, &error_abort);
+
+    return usbhub_dev;
+}
+
+void xemu_input_bind_driver(int index, const char *port, const char *driver)
+{
+    // Create XID controller. This is connected to Port 1 of the controller's internal USB Hub
+    QDict *qdict = qdict_new();
+
+    // Specify device driver
+    qdict_put_str(qdict, "driver", driver);
+
+    // Specify device identifier
+    static int id_counter = 0;
+    char *tmp = g_strdup_printf("gamepad_%d", id_counter++);
+    qdict_put_str(qdict, "id", tmp);
+    g_free(tmp);
+
+    // Specify index/port
+    qdict_put_int(qdict, "index", index);
+    qdict_put_str(qdict, "port", port);
+
+    // Create the device
+    QemuOpts *opts = qemu_opts_from_qdict(qemu_find_opts("device"), qdict, &error_abort);
+    DeviceState *dev = qdev_device_add(opts, &error_abort);
+    assert(dev);
+
+    qobject_unref(qdict);
+    object_unref(OBJECT(dev));
+}
+
+DeviceState *xemu_bind_usb_host(int hostbus, const char *hostport, const char *port)
+{
+    // Create XID controller. This is connected to Port 1 of the controller's internal USB Hub
+    QDict *qdict = qdict_new();
+
+    // specify device driver
+    qdict_put_str(qdict, "driver", "usb-host");
+
+    // specify hostbus
+    qdict_put_int(qdict, "hostbus", hostbus);
+
+    // specify hostport
+    qdict_put_str(qdict, "hostport", hostport);
+
+    // Specify port
+    qdict_put_str(qdict, "port", port);
+
+    // Create the device
+    QemuOpts *opts = qemu_opts_from_qdict(qemu_find_opts("device"), qdict, &error_abort);
+    DeviceState *dev = qdev_device_add(opts, &error_abort);
+    assert(dev);
+
+    qobject_unref(qdict);
+
+    return dev;
+}
+
 void xemu_input_bind(int index, ControllerState *state, int save)
 {
     // FIXME: Attempt to disable rumble when unbinding so it's not left
@@ -741,59 +801,103 @@ void xemu_input_bind(int index, ControllerState *state, int save)
         xemu_settings_set_string(port_index_to_driver_settings_key_map[index], bound_drivers[index]);
     }
 
-    // Bind new controller
-    if (state) {
-        if (state->bound >= 0) {
-            // Device was already bound to another port. Unbind it.
-            xemu_input_bind(state->bound, NULL, 1);
+    if(strcmp(bound_drivers[index], DRIVER_USB_PASSTHROUGH) != 0) {
+        if (state) {
+            if (state->bound >= 0) {
+                // Device was already bound to another port. Unbind it.
+                xemu_input_bind(state->bound, NULL, 1);
+            }
+
+            bound_controllers[index] = state;
+            bound_controllers[index]->bound = index;
+
+            const int port_map[4] = {3, 4, 1, 2};
+            char *tmp;
+
+            // Create controller's internal USB hub.
+            tmp = g_strdup_printf("1.%d", port_map[index]);
+            DeviceState *usbhub_dev = xemu_bind_usb_hub(3, tmp);
+            g_free(tmp);
+
+            char *port = g_strdup_printf("1.%d.1", port_map[index]);
+            xemu_input_bind_driver(index, port, bound_drivers[index]);
+
+            // Unref for eventual cleanup
+            object_unref(OBJECT(usbhub_dev));
+
+            state->device = usbhub_dev;
         }
+    }
+}
 
-        bound_controllers[index] = state;
-        bound_controllers[index]->bound = index;
+void xemu_input_bind_passthrough(int index, LibusbDevice *state, int save)
+{
+    if(bound_libusb_devices[index]) {
+        assert(bound_libusb_devices[index]->device != NULL);
+        Error *err = NULL;
+        qdev_unplug((DeviceState *)bound_libusb_devices[index]->device, &err);
+        assert(err == NULL);
 
-        const int port_map[4] = {3, 4, 1, 2};
-        char *tmp;
+        bound_libusb_devices[index]->bound = -1;
+        bound_libusb_devices[index]->device = NULL;
+        bound_libusb_devices[index] = NULL;
+    }
 
-        // Create controller's internal USB hub.
-        QDict *usbhub_qdict = qdict_new();
-        qdict_put_str(usbhub_qdict, "driver", "usb-hub");
-        tmp = g_strdup_printf("1.%d", port_map[index]);
-        qdict_put_str(usbhub_qdict, "port", tmp);
-        qdict_put_int(usbhub_qdict, "ports", 3);
-        QemuOpts *usbhub_opts = qemu_opts_from_qdict(qemu_find_opts("device"), usbhub_qdict, &error_abort);
-        DeviceState *usbhub_dev = qdev_device_add(usbhub_opts, &error_abort);
-        g_free(tmp);
+    if(save) {
+        // TODO:
+    }
 
-        // Create XID controller. This is connected to Port 1 of the controller's internal USB Hub
-        QDict *qdict = qdict_new();
+    if(strcmp(bound_drivers[index], DRIVER_USB_PASSTHROUGH) == 0) {
+        if(state) {
+            if (state->bound >= 0) {
+                // Device was already bound to another port. Unbind it.
+                xemu_input_bind_passthrough(state->bound, NULL, 1);
+            }
 
-        // Specify device driver
-        qdict_put_str(qdict, "driver", bound_drivers[index]);
+            bound_libusb_devices[index] = state;
+            bound_libusb_devices[index]->bound = index;
 
-        // Specify device identifier
-        static int id_counter = 0;
-        tmp = g_strdup_printf("gamepad_%d", id_counter++);
-        qdict_put_str(qdict, "id", tmp);
-        g_free(tmp);
+            const int port_map[4] = {3, 4, 1, 2};
+            char *tmp;
 
-        // Specify index/port
-        qdict_put_int(qdict, "index", index);
-        tmp = g_strdup_printf("1.%d.1", port_map[index]);
-        qdict_put_str(qdict, "port", tmp);
-        g_free(tmp);
+            if(state->internal_hub_ports > 0) {
+                // Create controller's internal USB hub.
+                char *port = g_strdup_printf("1.%d", port_map[index]);
+                DeviceState *usbhub_dev = xemu_bind_usb_hub(state->internal_hub_ports, port);
+                g_free(port);
 
-        // Create the device
-        QemuOpts *opts = qemu_opts_from_qdict(qemu_find_opts("device"), qdict, &error_abort);
-        DeviceState *dev = qdev_device_add(opts, &error_abort);
-        assert(dev);
+                // Create XID controller. This is connected to Port 1 of the controller's internal USB Hub
+                port = g_strdup_printf("1.%d.1", port_map[index]);
+                DeviceState *controller_dev = xemu_bind_usb_host(state->host_bus, state->host_port, port);
+                g_free(port);
 
-        // Unref for eventual cleanup
-        qobject_unref(usbhub_qdict);
-        object_unref(OBJECT(usbhub_dev));
-        qobject_unref(qdict);
-        object_unref(OBJECT(dev));
+                if(state->internal_hub_ports > 1) {
+                    for(int i = 1; i < state->internal_hub_ports; i++) {
+                        port = g_strdup_printf("1.%d.%d", port_map[index], i+1);
+                        char *hostport = g_strdup_printf("%.*s%d", strlen(state->host_port) - 1, state->host_port, i+1);
+                        DeviceState *expansion_port_dev = xemu_bind_usb_host(state->host_bus, hostport, port);
+                        g_free(port);
+                        g_free(hostport);
+                        object_unref(OBJECT(expansion_port_dev));
+                    }
+                }
 
-        state->device = usbhub_dev;
+                // Unref for eventual cleanup
+                object_unref(OBJECT(usbhub_dev));
+                
+                state->device = usbhub_dev;
+            } else {
+                // Create XID controller. This is connected to Port 1 of the controller's internal USB Hub
+                char *port = g_strdup_printf("1.%d", port_map[index]);
+                DeviceState *controller_dev = xemu_bind_usb_host(state->host_bus, state->host_port, port);
+                g_free(port);
+
+                // Unref for eventual cleanup
+                object_unref(OBJECT(controller_dev));
+
+                state->device = controller_dev;
+            }
+        }
     }
 }
 

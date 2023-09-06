@@ -166,23 +166,30 @@ void MainMenuInputView::Draw()
         driver = DRIVER_SB_DISPLAY_NAME;
     else if(strcmp(driver, DRIVER_FIGHT_STICK) == 0)
         driver = DRIVER_FIGHT_STICK_DISPLAY_NAME;
+    else if(strcmp(driver, DRIVER_USB_PASSTHROUGH) == 0)
+        driver = DRIVER_USB_PASSTHROUGH_DISPLAY_NAME;
 
     ImGui::SetNextItemWidth(-FLT_MIN);
     if (ImGui::BeginCombo("###InputDrivers", driver, ImGuiComboFlags_NoArrowButton))
     {
-        const char *available_drivers[4] = { DRIVER_DUKE, DRIVER_S, DRIVER_SB, DRIVER_FIGHT_STICK };
-        const char *driver_display_names[4] = { DRIVER_DUKE_DISPLAY_NAME, DRIVER_S_DISPLAY_NAME, DRIVER_SB_DISPLAY_NAME, DRIVER_FIGHT_STICK_DISPLAY_NAME };
+        const char *available_drivers[5] = { DRIVER_DUKE, DRIVER_S, DRIVER_SB, DRIVER_FIGHT_STICK, DRIVER_USB_PASSTHROUGH };
+        const char *driver_display_names[5] = { DRIVER_DUKE_DISPLAY_NAME, DRIVER_S_DISPLAY_NAME, DRIVER_SB_DISPLAY_NAME, DRIVER_FIGHT_STICK_DISPLAY_NAME, DRIVER_USB_PASSTHROUGH_DISPLAY_NAME };
         bool is_selected = false;
-        for(int i = 0; i < 4; i++) {
+        for(int i = 0; i < 5; i++) {
             const char* iter = driver_display_names[i];
             is_selected = strcmp(driver, iter) == 0;
             ImGui::PushID(iter);
             if (ImGui::Selectable(iter, is_selected)) {
-                for(int j = 0; j < 4; j++) {
+                for(int j = 0; j < 5; j++) {
                     if(iter == driver_display_names[j])
                         bound_drivers[active] = available_drivers[j];
                 }
-                xemu_input_bind(active, bound_controllers[active], 1);
+                if(strcmp(bound_drivers[active], DRIVER_USB_PASSTHROUGH) == 0) {
+                    xemu_input_bind(active, NULL, 1);
+                } else {
+                    xemu_input_bind_passthrough(active, NULL, 1);
+                    xemu_input_bind(active, bound_controllers[active], 1); // Just in case we're switching from one driver to another and not back from USB passthrough
+                }
             }
             if (is_selected) {
                 ImGui::SetItemDefaultFocus();
@@ -200,22 +207,26 @@ void MainMenuInputView::Draw()
     // List available input devices
     const char *not_connected = "Not Connected";
     ControllerState *bound_state = xemu_input_get_bound(active);
+    LibusbDevice *bound_device = xemu_input_get_bound_device(active);
 
     // Get current controller name
     const char *name;
-    if (bound_state == NULL) {
-        name = not_connected;
-    } else {
+    if (bound_state != NULL) {
         name = bound_state->name;
+    } else if(bound_device != NULL) {
+        name = bound_device->name;
+    } else {
+        name = not_connected;
     }
 
     ImGui::SetNextItemWidth(-FLT_MIN);
     if (ImGui::BeginCombo("###InputDevices", name, ImGuiComboFlags_NoArrowButton))
     {
         // Handle "Not connected"
-        bool is_selected = bound_state == NULL;
+        bool is_selected = bound_state == NULL && bound_device == NULL;
         if (ImGui::Selectable(not_connected, is_selected)) {
             xemu_input_bind(active, NULL, 1);
+            xemu_input_bind_passthrough(active, NULL, 1);
             bound_state = NULL;
         }
         if (is_selected) {
@@ -223,24 +234,52 @@ void MainMenuInputView::Draw()
         }
 
         // Handle all available input devices
-        ControllerState *iter;
-        QTAILQ_FOREACH(iter, &available_controllers, entry) {
-            is_selected = bound_state == iter;
-            ImGui::PushID(iter);
-            const char *selectable_label = iter->name;
-            char buf[128];
-            if (iter->bound >= 0) {
-                snprintf(buf, sizeof(buf), "%s (Port %d)", iter->name, iter->bound+1);
-                selectable_label = buf;
+        if(strcmp(bound_drivers[active], DRIVER_USB_PASSTHROUGH) == 0) {
+            get_libusb_devices();
+
+            LibusbDevice *iter;
+            QTAILQ_FOREACH(iter, &available_libusb_devices, entry) {
+                is_selected = bound_device == iter;
+                ImGui::PushID(iter);
+                const char *selectable_label = iter->name;
+                char buf[128];
+                if (iter->bound >= 0) {
+                    snprintf(buf, sizeof(buf), "%s (Port %d)", iter->name, iter->bound+1);
+                    selectable_label = buf;
+                }
+                if (ImGui::Selectable(selectable_label, is_selected)) {
+                    if(bound_state != NULL)
+                        xemu_input_bind(active, NULL, 1);
+                    xemu_input_bind_passthrough(active, iter, 1);
+                    bound_device = iter;
+                }
+                if (is_selected) {
+                    ImGui::SetItemDefaultFocus();
+                }
+                ImGui::PopID();
             }
-            if (ImGui::Selectable(selectable_label, is_selected)) {
-                xemu_input_bind(active, iter, 1);
-                bound_state = iter;
+        } else {
+            ControllerState *iter;
+            QTAILQ_FOREACH(iter, &available_controllers, entry) {
+                is_selected = bound_state == iter;
+                ImGui::PushID(iter);
+                const char *selectable_label = iter->name;
+                char buf[128];
+                if (iter->bound >= 0) {
+                    snprintf(buf, sizeof(buf), "%s (Port %d)", iter->name, iter->bound+1);
+                    selectable_label = buf;
+                }
+                if (ImGui::Selectable(selectable_label, is_selected)) {
+                    if(bound_device != NULL)
+                        xemu_input_bind_passthrough(active, NULL, 1);
+                    xemu_input_bind(active, iter, 1);
+                    bound_state = iter;
+                }
+                if (is_selected) {
+                    ImGui::SetItemDefaultFocus();
+                }
+                ImGui::PopID();
             }
-            if (is_selected) {
-                ImGui::SetItemDefaultFocus();
-            }
-            ImGui::PopID();
         }
 
         ImGui::EndCombo();
