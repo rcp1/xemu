@@ -211,6 +211,7 @@ LibusbDevice *xemu_input_get_bound_device(int index);
 void xemu_input_bind(int index, ControllerState *state, int save);
 void xemu_input_bind_passthrough(int index, LibusbDevice *device, int save);
 int xemu_input_get_controller_default_bind_port(ControllerState *state, int start);
+int xemu_input_get_libusb_device_default_bind_port(LibusbDevice *device, int start);
 
 void xemu_input_set_test_mode(int enabled);
 int xemu_input_get_test_mode(void);

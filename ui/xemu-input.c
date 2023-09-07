@@ -250,6 +250,26 @@ void xemu_input_init(void)
     bound_drivers[2] = get_bound_driver(2);
     bound_drivers[3] = get_bound_driver(3);
 
+    get_libusb_devices();
+
+    LibusbDevice *iter;
+
+    LibusbDevice *devices_to_bind[4] = { NULL, NULL, NULL, NULL };
+
+    QTAILQ_FOREACH(iter, &available_libusb_devices, entry) {
+        if(iter->bound < 0) {
+            int p = xemu_input_get_libusb_device_default_bind_port(iter, 0);
+            if(p >= 0) {
+                devices_to_bind[p] = iter;
+            }
+        }
+    }
+
+    for(int i = 0; i < 4; i++) {
+        if(devices_to_bind[i] != NULL)
+            xemu_input_bind_passthrough(i, devices_to_bind[i], 1);
+    }
+
     // Check to see if we should auto-bind the keyboard
     int port = xemu_input_get_controller_default_bind_port(new_con, 0);
     if (port >= 0) {
@@ -273,6 +293,21 @@ int xemu_input_get_controller_default_bind_port(ControllerState *state, int star
 
     for (int i = start; i < 4; i++) {
         if (strcmp(guid, *port_index_to_settings_key_map[i]) == 0) {
+            return i;
+        }
+    }
+
+    return -1;
+}
+
+int xemu_input_get_libusb_device_default_bind_port(LibusbDevice *device, int start)
+{
+    assert(device);
+    char guid[35] = { 0 };
+    snprintf(guid, sizeof(guid), "USB\\%04x:%04x:%d:%s", device->vendor_id, device->product_id, device->host_bus, device->host_port);
+    
+    for(int i = start; i < 4; i++) {
+        if(strcmp(guid, *port_index_to_settings_key_map[i])== 0) {
             return i;
         }
     }
@@ -345,7 +380,8 @@ void xemu_input_process_sdl_events(const SDL_Event *event)
         // Try to bind to any open port, and if so remember the binding
         if (!did_bind && g_config.input.auto_bind) {
             for (port = 0; port < 4; port++) {
-                if (!xemu_input_get_bound(port)) {
+                if (!xemu_input_get_bound(port) &&
+                    !xemu_input_get_bound_device(port)) {
                     xemu_input_bind(port, new_con, 1);
                     did_bind = true;
                     break;
@@ -844,7 +880,14 @@ void xemu_input_bind_passthrough(int index, LibusbDevice *state, int save)
     }
 
     if(save) {
-        // TODO:
+        char guid_buf[35] = { 0 };
+        if(state) {
+            // format:     hex       hex        int      string
+            //         USB\vendor_id:product_id:host_bus:host_port
+            snprintf(guid_buf, sizeof(guid_buf), "USB\\%04x:%04x:%d:%s", state->vendor_id, state->product_id, state->host_bus, state->host_port);
+        }
+        xemu_settings_set_string(port_index_to_settings_key_map[index], guid_buf);
+        xemu_settings_set_string(port_index_to_driver_settings_key_map[index], bound_drivers[index]);
     }
 
     if(strcmp(bound_drivers[index], DRIVER_USB_PASSTHROUGH) == 0) {
@@ -884,6 +927,7 @@ void xemu_input_bind_passthrough(int index, LibusbDevice *state, int save)
 
                 // Unref for eventual cleanup
                 object_unref(OBJECT(usbhub_dev));
+                object_unref(OBJECT(controller_dev));
                 
                 state->device = usbhub_dev;
             } else {
