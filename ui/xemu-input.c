@@ -128,7 +128,7 @@ const char *get_bound_driver(int port) {
     }
     
     // Shouldn't be possible
-    return NULL;
+    return DRIVER_DUKE;
 }
 
 void xemu_input_init(void)
