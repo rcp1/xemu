@@ -28,6 +28,9 @@
  * THE SOFTWARE.
  */
 
+// ...from ui/xemu-input.h
+void xemu_input_bind_passthrough(int index, LibusbDevice *device, int save);
+
 typedef struct known_libusb_device {
     unsigned short vendor_id;
     unsigned short product_id;
@@ -74,7 +77,7 @@ known_libusb_device wellKnownDevices[] = {
 LibusbDeviceList available_libusb_devices =
     QTAILQ_HEAD_INITIALIZER(available_libusb_devices);
 
-void get_libusb_devices() {
+void get_libusb_devices(void) {
     libusb_device **devs = NULL;
     struct libusb_device_descriptor ddesc;
     unsigned int bus;

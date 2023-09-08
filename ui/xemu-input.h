@@ -206,6 +206,7 @@ void xemu_input_update_controller(ControllerState *state);
 void xemu_input_update_sdl_kbd_controller_state(ControllerState *state);
 void xemu_input_update_sdl_controller_state(ControllerState *state);
 void xemu_input_update_rumble(ControllerState *state);
+const char *get_bound_driver(int port);
 ControllerState *xemu_input_get_bound(int index);
 LibusbDevice *xemu_input_get_bound_device(int index);
 void xemu_input_bind(int index, ControllerState *state, int save);

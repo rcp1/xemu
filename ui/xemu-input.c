@@ -87,7 +87,10 @@ ControllerStateList available_controllers =
 
 ControllerState *bound_controllers[4] = { NULL, NULL, NULL, NULL };
 LibusbDevice *bound_libusb_devices[4] = { NULL, NULL, NULL, NULL };
-const char *all_drivers[5] = { DRIVER_DUKE, DRIVER_S, DRIVER_SB, DRIVER_FIGHT_STICK, DRIVER_USB_PASSTHROUGH };
+
+#define NUM_DRIVERS 5
+const char *all_drivers[NUM_DRIVERS] = { DRIVER_DUKE, DRIVER_S, DRIVER_SB, DRIVER_FIGHT_STICK, DRIVER_USB_PASSTHROUGH };
+
 const char *bound_drivers[4] = { DRIVER_DUKE, DRIVER_DUKE, DRIVER_DUKE, DRIVER_DUKE };
 int test_mode;
 
@@ -110,7 +113,7 @@ static int sdl_sbc_kbd_scancode_map[56];
 
 const char *get_bound_driver(int port) {
     assert(port >= 0 && port <= 3);
-    const char *driver = NULL;    
+    const char *driver = NULL;
 
     driver = *port_index_to_driver_settings_key_map[port];
 
@@ -119,13 +122,13 @@ const char *get_bound_driver(int port) {
     if(strlen(driver) == 0)
         return DRIVER_DUKE;
 
-    for(int i = 0; i < 5; i++) {
+    for(int i = 0; i < NUM_DRIVERS; i++) {
         if(strcmp(driver, all_drivers[i]) == 0)
             return all_drivers[i];
     }
     
     // Shouldn't be possible
-    assert(false);
+    return NULL;
 }
 
 void xemu_input_init(void)
@@ -740,7 +743,7 @@ LibusbDevice *xemu_input_get_bound_device(int index)
     return bound_libusb_devices[index];
 }
 
-DeviceState *xemu_bind_usb_hub(int num_ports, const char *port)
+static DeviceState *xemu_bind_usb_hub(int num_ports, const char *port)
 {
     QDict *usbhub_qdict = qdict_new();
     qdict_put_str(usbhub_qdict, "driver", "usb-hub");
@@ -752,7 +755,7 @@ DeviceState *xemu_bind_usb_hub(int num_ports, const char *port)
     return usbhub_dev;
 }
 
-void xemu_input_bind_driver(int index, const char *port, const char *driver)
+static void xemu_input_bind_driver(int index, const char *port, const char *driver)
 {
     // Create XID controller. This is connected to Port 1 of the controller's internal USB Hub
     QDict *qdict = qdict_new();
@@ -779,7 +782,7 @@ void xemu_input_bind_driver(int index, const char *port, const char *driver)
     object_unref(OBJECT(dev));
 }
 
-DeviceState *xemu_bind_usb_host(int hostbus, const char *hostport, const char *port)
+static DeviceState *xemu_bind_usb_host(int hostbus, const char *hostport, const char *port)
 {
     // Create XID controller. This is connected to Port 1 of the controller's internal USB Hub
     QDict *qdict = qdict_new();
@@ -901,7 +904,6 @@ void xemu_input_bind_passthrough(int index, LibusbDevice *state, int save)
             bound_libusb_devices[index]->bound = index;
 
             const int port_map[4] = {3, 4, 1, 2};
-            char *tmp;
 
             if(state->internal_hub_ports > 0) {
                 // Create controller's internal USB hub.
@@ -917,7 +919,7 @@ void xemu_input_bind_passthrough(int index, LibusbDevice *state, int save)
                 if(state->internal_hub_ports > 1) {
                     for(int i = 1; i < state->internal_hub_ports; i++) {
                         port = g_strdup_printf("1.%d.%d", port_map[index], i+1);
-                        char *hostport = g_strdup_printf("%.*s%d", strlen(state->host_port) - 1, state->host_port, i+1);
+                        char *hostport = g_strdup_printf("%.*s%d", (int)strlen(state->host_port) - 1, state->host_port, i+1);
                         DeviceState *expansion_port_dev = xemu_bind_usb_host(state->host_bus, hostport, port);
                         g_free(port);
                         g_free(hostport);

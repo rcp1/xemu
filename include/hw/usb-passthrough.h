@@ -47,7 +47,7 @@ typedef struct LibusbDevice {
 
 typedef QTAILQ_HEAD(, LibusbDevice) LibusbDeviceList;
 extern LibusbDeviceList available_libusb_devices;
-void get_libusb_devices();
+void get_libusb_devices(void);
 
 #ifdef __cplusplus
 }
