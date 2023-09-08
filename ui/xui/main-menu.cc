@@ -302,13 +302,16 @@ void MainMenuInputView::Draw()
     if (bound_state) {
         device_selected = true;
         RenderController(0, 0, 0x81dc8a00, 0x0f0f0f00, bound_state);
+    } else if (bound_device) {
+        device_selected = true;
+        RenderController(bound_device);
     } else {
         static ControllerState state = { 0 };
         RenderController(0, 0, 0x1f1f1f00, 0x0f0f0f00, &state);
     }
 
     ImVec2 cur = ImGui::GetCursorPos();
-
+    
     ImVec2 controller_display_size;
     if (ImGui::GetContentRegionMax().x < controller_width*g_viewport_mgr.m_scale) {
         controller_display_size.x = ImGui::GetContentRegionMax().x;
@@ -324,27 +327,25 @@ void MainMenuInputView::Draw()
         ImGui::GetCursorPosX() +
         (int)((ImGui::GetColumnWidth() - controller_display_size.x) / 2.0));
 
+    cur = ImGui::GetCursorPos();
+
     ImGui::Image(id,
         controller_display_size,
         ImVec2(0, controller_height/t_h),
         ImVec2(controller_width/t_w, 0));
     ImVec2 pos = ImGui::GetCursorPos();
     if (!device_selected) {
-        if(bound_device) {
-            RenderController(bound_device);
-
-            const char *msg = "USB Passthrough devices can't be displayed";
-            ImVec2 dim = ImGui::CalcTextSize(msg);
-            ImGui::SetCursorPosX(cur.x + (controller_display_size.x-dim.x)/2);
-            ImGui::SetCursorPosY(cur.y + (controller_display_size.y-dim.y)/2);
-            ImGui::Text("%s", msg);
-        } else {
-            const char *msg = "Please select an available input device";
-            ImVec2 dim = ImGui::CalcTextSize(msg);
-            ImGui::SetCursorPosX(cur.x + (controller_display_size.x-dim.x)/2);
-            ImGui::SetCursorPosY(cur.y + (controller_display_size.y-dim.y)/2);
-            ImGui::Text("%s", msg);
-        }
+        const char *msg = "Please select an available input device";
+        ImVec2 dim = ImGui::CalcTextSize(msg);
+        ImGui::SetCursorPosX(cur.x + (controller_display_size.x-dim.x)/2);
+        ImGui::SetCursorPosY(cur.y + (controller_display_size.y-dim.y)/2);
+        ImGui::Text("%s", msg);
+    } else if (bound_device) {
+        const char *msg = "USB Passthrough devices can't be displayed";
+        ImVec2 dim = ImGui::CalcTextSize(msg);
+        ImGui::SetCursorPosX(cur.x + (controller_display_size.x-dim.x)/2);
+        ImGui::SetCursorPosY(cur.y + (controller_display_size.y-dim.y)/2);
+        ImGui::Text("%s", msg);
     }
 
     controller_fbo->Restore();
