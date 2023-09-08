@@ -1235,6 +1235,22 @@ void RenderController(float frame_x, float frame_y, uint32_t primary_color,
         RenderFightStick(frame_x, frame_y, primary_color, secondary_color, state);
 }
 
+void RenderController(LibusbDevice *state)
+{
+    float frame_x = 0, frame_y = 0;
+    uint32_t primary_color = 0x1f1f1f00, secondary_color = 0x0f0f0f00;
+    static ControllerState fake_state = { 0 };
+
+    if(strcmp(state->name, "Xbox Controller S") == 0)
+        RenderController_S(frame_x, frame_y, primary_color, secondary_color, &fake_state);   
+    else if(strcmp(state->name, "Xbox Controller") == 0)
+        RenderController_Duke(frame_x, frame_y, primary_color, secondary_color, &fake_state);
+    else if(strcmp(state->name, "Steel Battalion Controller") == 0)
+        RenderController_SB(frame_x, frame_y, primary_color, secondary_color, &fake_state);
+    else if(strcmp(state->name, "HORI Fight Stick") == 0)
+        RenderFightStick(frame_x, frame_y, primary_color, secondary_color, &fake_state);
+}
+
 void RenderControllerPort(float frame_x, float frame_y, int i,
                           uint32_t port_color)
 {
