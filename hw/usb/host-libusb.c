@@ -38,7 +38,7 @@
 #ifndef CONFIG_WIN32
 #include <poll.h>
 #endif
-#include <libusb.h>
+#include "host-libusb.h"
 
 #define USE_SYNC_INTERRUPTS 0
 
@@ -233,7 +233,7 @@ static const char *err_names[] = {
     [-LIBUSB_ERROR_OTHER]            = "OTHER",
 };
 
-static libusb_context *ctx;
+libusb_context *ctx;
 static uint32_t loglevel;
 
 #ifndef CONFIG_WIN32
@@ -282,7 +282,7 @@ static void usb_host_timer(void *opaque)
 
 #endif /* !CONFIG_WIN32 */
 
-static int usb_host_init(void)
+int usb_host_init(void)
 {
 #ifndef CONFIG_WIN32
     const struct libusb_pollfd **poll;
@@ -320,7 +320,7 @@ static int usb_host_init(void)
     return 0;
 }
 
-static int usb_host_get_port(libusb_device *dev, char *port, size_t len)
+int usb_host_get_port(libusb_device *dev, char *port, size_t len)
 {
     uint8_t path[7];
     size_t off;
@@ -1983,116 +1983,5 @@ void hmp_info_usbhost(Monitor *mon, const QDict *qdict)
         }
         monitor_printf(mon, "\n");
     }
-    libusb_free_device_list(devs, 1);
-}
-
-typedef struct known_libusb_device {
-    unsigned short vendor_id;
-    unsigned short product_id;
-    const char *name;
-    int hub_ports;
-} known_libusb_device;
-
-const char *unknownDeviceName = "Unknown Device";
-
-#define NUM_KNOWN_XID_DEVICES 5
-known_libusb_device wellKnownDevices[NUM_KNOWN_XID_DEVICES] = {
-    { 0x045e, 0x0202, "Xbox Controller", 3 },
-    { 0x045e, 0x0285, "Xbox Controller S", 3 },
-    { 0x045e, 0x0289, "Xbox Controller S", 3 },
-    { 0x0a7b, 0xd000, "Steel Battalion Controller", 0 },
-    { 0x0101, 0x0001, "HORI Fight Stick", 2 }
-};
-
-LibusbDeviceList available_libusb_devices =
-    QTAILQ_HEAD_INITIALIZER(available_libusb_devices);
-
-void get_libusb_devices() {
-    libusb_device **devs = NULL;
-    struct libusb_device_descriptor ddesc;
-    unsigned int bus;
-    unsigned short vendor_id, product_id;
-    char port[16];
-    int i, j, n, hub_ports;
-    const char *name;
-    LibusbDevice *iter;
-    bool previously_detected;
-
-    if (usb_host_init() != 0) {
-        return;
-    }
-
-    QTAILQ_FOREACH(iter, &available_libusb_devices, entry) {
-        iter->detected = false;
-    }
-
-    n = libusb_get_device_list(ctx, &devs);
-    for (i = 0; i < n; i++) {
-        if (libusb_get_device_descriptor(devs[i], &ddesc) != 0) {
-            continue;
-        }
-        if (ddesc.bDeviceClass == LIBUSB_CLASS_HUB) {
-            continue;
-        }
-
-        name = unknownDeviceName;
-
-        usb_host_get_port(devs[i], port, sizeof(port));
-        bus = libusb_get_bus_number(devs[i]);
-        vendor_id = ddesc.idVendor;
-        product_id = ddesc.idProduct;
-
-        previously_detected = false;
-        // We already know about this one
-        QTAILQ_FOREACH(iter, &available_libusb_devices, entry) {
-            if (iter->vendor_id == vendor_id &&
-                iter->product_id == product_id &&
-                iter->host_bus == bus &&
-                strcmp(iter->host_port, port) == 0) {
-                previously_detected = true;
-                iter->detected = true;
-            }
-        }
-
-        if(previously_detected)
-            continue;
-
-        for(j = 0; j < NUM_KNOWN_XID_DEVICES; j++) {
-            if (wellKnownDevices[j].vendor_id == vendor_id && 
-                wellKnownDevices[j].product_id == product_id) {
-                name = wellKnownDevices[j].name;
-                hub_ports = wellKnownDevices[j].hub_ports;
-                break;
-            }
-        }
-
-        // Skip any devices we don't already know about
-        if(name == unknownDeviceName)
-            continue;
-
-        LibusbDevice *device = g_malloc(sizeof(LibusbDevice));
-        memset(device, 0, sizeof(LibusbDevice));
-        device->vendor_id = vendor_id;
-        device->product_id = product_id;
-        device->host_bus = bus;
-        device->host_port = g_strdup(port);
-        device->name = name;
-        device->bound = -1;
-        device->detected = true;
-        device->internal_hub_ports = hub_ports;
-
-        QTAILQ_INSERT_TAIL(&available_libusb_devices, device, entry);
-    }
-
-    // Remove any devices that aren't detected anymore
-    QTAILQ_FOREACH(iter, &available_libusb_devices, entry) {
-        if(!iter->detected) {
-            if(iter->bound) {
-                xemu_input_bind_passthrough(iter->bound, NULL, 1);
-            }
-            QTAILQ_REMOVE(&available_libusb_devices, iter, entry);
-        }
-    }
-
     libusb_free_device_list(devs, 1);
 }
