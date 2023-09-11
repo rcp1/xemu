@@ -34,20 +34,24 @@ extern "C" {
 typedef struct LibusbDevice {
     QTAILQ_ENTRY(LibusbDevice) entry;
 
-    unsigned short vendor_id;   // The vendor id of the device. Used to identify the device
-    unsigned short product_id;  // The product id of the device. Used to identify the device
-    unsigned int host_bus;      // the bus on the host system. Used for binding
-    const char *host_port;      // The port on the host system. Used for binding
-    const char *name;           // The name of the device
-    bool detected;              // true if it has been detected in the get_libusb_devices process. Used internally
-    int bound;                  // internal port that this controller is bound to
-    int internal_hub_ports;     // Numberof ports on the internal hub. This value is 0 if there is no internal hub
-    void *device;               // The root device of the controller
+    unsigned short vendor_id;                                       // The vendor id of the device. Used to identify the device
+    unsigned short product_id;                                      // The product id of the device. Used to identify the device
+    unsigned int host_bus;                                          // the bus on the host system. Used for binding
+    const char *host_port;                                          // The port on the host system. Used for binding
+    const char *name;                                               // The name of the device
+    bool detected;                                                  // true if it has been detected in the get_libusb_devices process. Used internally
+    int bound;                                                      // internal port that this controller is bound to
+    int internal_hub_ports;                                         // Number of ports on the internal hub. This value is 0 if there is no internal hub
+    void *device;                                                   // The root device of the controller
+    //void (*input_buffer_changed)(size_t buf_len, uint8_t *buffer);  // This function is called when the input buffer of the device is updated
+    uint8_t *buffer;
+    size_t buf_len;
 } LibusbDevice;
 
 typedef QTAILQ_HEAD(, LibusbDevice) LibusbDeviceList;
 extern LibusbDeviceList available_libusb_devices;
 void get_libusb_devices(void);
+LibusbDevice *find_libusb_device(int host_bus, const char *host_port);
 
 #ifdef __cplusplus
 }

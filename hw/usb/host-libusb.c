@@ -484,6 +484,17 @@ static void LIBUSB_CALL usb_host_req_complete_data(struct libusb_transfer *xfer)
     r->p->status = status_map[xfer->status];
     if (r->in && xfer->actual_length) {
         usb_packet_copy(r->p, r->buffer, xfer->actual_length);
+        LibusbDevice *dev = find_libusb_device(r->host->bus_num, r->host->port);
+        if(dev != NULL) {
+            if(dev->buffer == NULL)
+                dev->buffer = g_malloc(xfer->actual_length);
+            else if(dev->buf_len < xfer->actual_length) {
+                g_free(dev->buffer);
+                dev->buffer = g_malloc(xfer->actual_length);
+            }
+            dev->buf_len = xfer->actual_length;
+            memcpy(dev->buffer, r->buffer, xfer->actual_length);
+        }
     }
     trace_usb_host_req_complete(s->bus_num, s->addr, r->p,
                                 r->p->status, r->p->actual_length);

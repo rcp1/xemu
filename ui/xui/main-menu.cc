@@ -304,7 +304,7 @@ void MainMenuInputView::Draw()
         RenderController(0, 0, 0x81dc8a00, 0x0f0f0f00, bound_state);
     } else if (bound_device) {
         device_selected = true;
-        RenderController(bound_device);
+        RenderController(0, 0, 0x81dc8a00, 0x0f0f0f00, bound_device);
     } else {
         static ControllerState state = { 0 };
         RenderController(0, 0, 0x1f1f1f00, 0x0f0f0f00, &state);
@@ -340,13 +340,13 @@ void MainMenuInputView::Draw()
         ImGui::SetCursorPosX(cur.x + (controller_display_size.x-dim.x)/2);
         ImGui::SetCursorPosY(cur.y + (controller_display_size.y-dim.y)/2);
         ImGui::Text("%s", msg);
-    } else if (bound_device) {
-        const char *msg = "USB Passthrough devices can't be displayed";
-        ImVec2 dim = ImGui::CalcTextSize(msg);
-        ImGui::SetCursorPosX(cur.x + (controller_display_size.x-dim.x)/2);
-        ImGui::SetCursorPosY(cur.y + (controller_display_size.y-dim.y)/2);
-        ImGui::Text("%s", msg);
-    }
+    } // else if (bound_device && !bound_device->buffer) {
+    //     const char *msg = "USB Passthrough device can't be displayed";
+    //     ImVec2 dim = ImGui::CalcTextSize(msg);
+    //     ImGui::SetCursorPosX(cur.x + (controller_display_size.x-dim.x)/2);
+    //     ImGui::SetCursorPosY(cur.y + (controller_display_size.y-dim.y)/2);
+    //     ImGui::Text("%s", msg);
+    // }
 
     controller_fbo->Restore();
 

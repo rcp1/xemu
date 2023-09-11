@@ -77,7 +77,8 @@ known_libusb_device wellKnownDevices[] = {
 LibusbDeviceList available_libusb_devices =
     QTAILQ_HEAD_INITIALIZER(available_libusb_devices);
 
-void get_libusb_devices(void) {
+void get_libusb_devices(void)
+{
     libusb_device **devs = NULL;
     struct libusb_device_descriptor ddesc;
     unsigned int bus;
@@ -165,4 +166,16 @@ void get_libusb_devices(void) {
     }
 
     libusb_free_device_list(devs, 1);
+}
+
+LibusbDevice *find_libusb_device(int host_bus, const char *host_port)
+{
+    LibusbDevice *iter;
+    QTAILQ_FOREACH(iter, &available_libusb_devices, entry) {
+        if (iter->host_bus == host_bus &&
+            strcmp(iter->host_port, host_port) == 0) {
+            return iter;
+        }
+    }
+    return NULL;
 }
