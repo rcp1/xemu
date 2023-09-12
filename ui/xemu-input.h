@@ -108,6 +108,16 @@ enum steel_battalion_controller_state_buttons_mask {
 
 #define CONTROLLER_STATE_BUTTON_ID_TO_MASK(x) (1<<x)
 
+enum controller_analog_button_index {
+    CONTROLLER_ANALOG_BTN_A,
+    CONTROLLER_ANALOG_BTN_B,
+    CONTROLLER_ANALOG_BTN_X,
+    CONTROLLER_ANALOG_BTN_Y,
+    CONTROLLER_ANALOG_BTN_BLACK,
+    CONTROLLER_ANALOG_BTN_WHITE,
+    CONTROLLER_ANALOG_BTN__COUNT
+};
+
 enum controller_state_axis_index {
     CONTROLLER_AXIS_LTRIG,
     CONTROLLER_AXIS_RTRIG,
@@ -138,6 +148,7 @@ enum controller_input_device_type {
 typedef struct GamepadState {
     // Input state
     uint16_t buttons;
+    uint8_t  analog_buttons[CONTROLLER_ANALOG_BTN__COUNT];
     int16_t  axis[CONTROLLER_AXIS__COUNT];
 
     // Rendering state hacked on here for convenience but needs to be moved (FIXME)
@@ -169,6 +180,7 @@ typedef struct ControllerState {
 
     // Input state
     uint16_t buttons;
+    uint8_t  analog_buttons[CONTROLLER_ANALOG_BTN__COUNT];
     int16_t  axis[CONTROLLER_AXIS__COUNT];
 
     // Rendering state hacked on here for convenience but needs to be moved (FIXME)

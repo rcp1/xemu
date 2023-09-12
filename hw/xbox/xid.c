@@ -27,7 +27,7 @@
 #include "ui/console.h"
 #include "hw/usb.h"
 #include "hw/usb/desc.h"
-#include "ui/xemu-input.h"
+#include "hw/xid.h"
 
 //#define DEBUG_XID
 #ifdef DEBUG_XID
@@ -90,42 +90,12 @@ typedef struct XIDDesc {
     uint16_t wAlternateProductIds[4];
 } QEMU_PACKED XIDDesc;
 
-typedef struct XIDGamepadReport {
-    uint8_t  bReportId;
-    uint8_t  bLength;
-    uint16_t wButtons;
-    uint8_t  bAnalogButtons[8];
-    int16_t  sThumbLX;
-    int16_t  sThumbLY;
-    int16_t  sThumbRX;
-    int16_t  sThumbRY;
-} QEMU_PACKED XIDGamepadReport;
-
 typedef struct XIDGamepadOutputReport {
     uint8_t  report_id; //FIXME: is this correct?
     uint8_t  length;
     uint16_t left_actuator_strength;
     uint16_t right_actuator_strength;
 } QEMU_PACKED XIDGamepadOutputReport;
-
-typedef struct XIDSteelBattalionReport {
-    uint8_t     bReportId;
-    uint8_t     bLength;
-    uint32_t    dwButtons;
-    uint8_t     bMoreButtons;
-    uint16_t    wPadding;
-    uint8_t  	bAimingX;
-    uint8_t     bPadding;
-    uint8_t  	bAimingY;
-    int16_t   	sRotationLever; // only high byte is used
-    int16_t   	sSightChangeX;  // only high byte is used
-    int16_t   	sSightChangeY;  // only high byte is used
-    uint16_t    wLeftPedal;     // only high byte is used
-    uint16_t    wMiddlePedal;   // only high byte is used
-    uint16_t    wRightPedal;    // only high byte is used
-    uint8_t   	ucTunerDial;    // low nibble, The 9 o'clock postion is 0, and the 6 o'clock position is 12
-    uint8_t   	ucGearLever;    // gear lever 1~5 for gear 1~5, 7~13 for gear R,N,1~5, 15 for gear R
-} QEMU_PACKED XIDSteelBattalionReport;
 
 typedef struct XIDSteelBattalionOutputReport {
     uint8_t report_id;
@@ -358,26 +328,6 @@ static const XIDDesc desc_xid_steel_battalion = {
     .bMaxOutputReportSize = 32,
     .wAlternateProductIds = { 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF },
 };
-
-#define GAMEPAD_A                0
-#define GAMEPAD_B                1
-#define GAMEPAD_X                2
-#define GAMEPAD_Y                3
-#define GAMEPAD_BLACK            4
-#define GAMEPAD_WHITE            5
-#define GAMEPAD_LEFT_TRIGGER     6
-#define GAMEPAD_RIGHT_TRIGGER    7
-
-#define GAMEPAD_DPAD_UP          8
-#define GAMEPAD_DPAD_DOWN        9
-#define GAMEPAD_DPAD_LEFT        10
-#define GAMEPAD_DPAD_RIGHT       11
-#define GAMEPAD_START            12
-#define GAMEPAD_BACK             13
-#define GAMEPAD_LEFT_THUMB       14
-#define GAMEPAD_RIGHT_THUMB      15
-
-#define BUTTON_MASK(button) (1 << ((button) - GAMEPAD_DPAD_UP))
 
 static void update_output(USBXIDGamepadState *s)
 {
@@ -914,3 +864,68 @@ static void usb_xid_register_types(void)
 }
 
 type_init(usb_xid_register_types)
+
+void UpdateControllerState_Gamepad(ControllerState *state, XIDGamepadReport *in_state)
+{
+    const int button_map_analog[6][2] = {
+        { GAMEPAD_A,     CONTROLLER_BUTTON_A     },
+        { GAMEPAD_B,     CONTROLLER_BUTTON_B     },
+        { GAMEPAD_X,     CONTROLLER_BUTTON_X     },
+        { GAMEPAD_Y,     CONTROLLER_BUTTON_Y     },
+        { GAMEPAD_BLACK, CONTROLLER_BUTTON_BLACK },
+        { GAMEPAD_WHITE, CONTROLLER_BUTTON_WHITE },
+    };
+
+    const int button_map_binary[8][2] = {
+        { GAMEPAD_BACK,        CONTROLLER_BUTTON_BACK       },
+        { GAMEPAD_START,       CONTROLLER_BUTTON_START      },
+        { GAMEPAD_LEFT_THUMB,  CONTROLLER_BUTTON_LSTICK     },
+        { GAMEPAD_RIGHT_THUMB, CONTROLLER_BUTTON_RSTICK     },
+        { GAMEPAD_DPAD_UP,     CONTROLLER_BUTTON_DPAD_UP    },
+        { GAMEPAD_DPAD_DOWN,   CONTROLLER_BUTTON_DPAD_DOWN  },
+        { GAMEPAD_DPAD_LEFT,   CONTROLLER_BUTTON_DPAD_LEFT  },
+        { GAMEPAD_DPAD_RIGHT,  CONTROLLER_BUTTON_DPAD_RIGHT },
+    };
+
+    state->gp.buttons = 0;
+    for (int i = 0; i < 6; i++) {
+        state->gp.analog_buttons[i] = in_state->bAnalogButtons[button_map_analog[i][0]];
+        if(state->gp.analog_buttons[i] > 10)
+            state->gp.buttons |= button_map_analog[i][1];
+    }
+
+    for (int i = 0; i < 8; i++) {
+        if(in_state->wButtons & BUTTON_MASK(button_map_binary[i][0]))
+            state->gp.buttons |= button_map_binary[i][1];
+    }
+
+    state->gp.axis[CONTROLLER_AXIS_LTRIG] = (int16_t)(0x7fffL * in_state->bAnalogButtons[GAMEPAD_LEFT_TRIGGER] / 255);
+    state->gp.axis[CONTROLLER_AXIS_RTRIG] = (int16_t)(0x7fffL * in_state->bAnalogButtons[GAMEPAD_RIGHT_TRIGGER] / 255);
+    state->gp.axis[CONTROLLER_AXIS_LSTICK_X] = in_state->sThumbLX;
+    state->gp.axis[CONTROLLER_AXIS_LSTICK_Y] = in_state->sThumbLY;
+    state->gp.axis[CONTROLLER_AXIS_RSTICK_X] = in_state->sThumbRX;
+    state->gp.axis[CONTROLLER_AXIS_RSTICK_Y] = in_state->sThumbRY;
+
+    memcpy(&state->buttons, &state->gp.buttons, sizeof(state->buttons));
+    memcpy(state->analog_buttons, state->gp.analog_buttons, sizeof(state->gp.analog_buttons));
+    memcpy(state->axis, state->gp.axis, sizeof(state->gp.axis));
+}
+
+void UpdateControllerState_SteelBattalionController(ControllerState *state, XIDSteelBattalionReport *in_state)
+{
+    state->sbc.buttons = (uint64_t)in_state->dwButtons;
+    state->sbc.buttons |= ((uint64_t)in_state->bMoreButtons) << 32;
+    state->sbc.toggleSwitches = in_state->bMoreButtons & 0x7C;
+
+    state->sbc.axis[SBC_AXIS_SIGHT_CHANGE_X] = in_state->sSightChangeX;
+    state->sbc.axis[SBC_AXIS_SIGHT_CHANGE_Y] = in_state->sSightChangeY;
+    state->sbc.axis[SBC_AXIS_AIMING_X] = (int16_t)((in_state->bAimingX - 128) << 8); // Convert from uint8_t to int16_t
+    state->sbc.axis[SBC_AXIS_AIMING_Y] = (int16_t)((in_state->bAimingY - 128) << 8); // Convert from uint8_t to int16_t
+    state->sbc.axis[SBC_AXIS_ROTATION_LEVER] = in_state->sRotationLever;
+    state->sbc.axis[SBC_AXIS_LEFT_PEDAL] = (int16_t)(in_state->wLeftPedal >> 1);     // Convert from uint16_t to int16_t
+    state->sbc.axis[SBC_AXIS_MIDDLE_PEDAL] = (int16_t)(in_state->wMiddlePedal >> 1); // Convert from uint16_t to int16_t
+    state->sbc.axis[SBC_AXIS_RIGHT_PEDAL] = (int16_t)(in_state->wRightPedal >> 1);   // Convert from uint16_t to int16_t
+
+    state->sbc.gearLever = in_state->ucGearLever;
+    state->sbc.tunerDial = in_state->ucTunerDial;
+}

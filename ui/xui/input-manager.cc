@@ -22,6 +22,7 @@ void InputManager::Update()
     QTAILQ_FOREACH(iter, &available_controllers, entry) {
         if (iter->type != INPUT_DEVICE_SDL_GAMECONTROLLER) continue;
         m_buttons |= iter->gp.buttons;
+
         // We simply take any axis that is >10 % activation
         for (int i = 0; i < CONTROLLER_AXIS__COUNT; i++) {
             if ((iter->gp.axis[i] > 3276) || (iter->gp.axis[i] < -3276)) {

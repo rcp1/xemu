@@ -32,6 +32,7 @@
 #include "data/xemu_64x64.png.h"
 #include "notifications.hh"
 #include "ui/xemu-widescreen.h"
+#include "hw/xid.h"
 
 Fbo *controller_fbo,
     *logo_fbo;
@@ -584,13 +585,35 @@ void RenderController_Duke(float frame_x, float frame_y, uint32_t primary_color,
 
     // The controller has alpha cutouts where the buttons are. Draw a surface
     // behind the buttons if they are activated
+    int digital_to_analog_btn_map [12] {
+        CONTROLLER_ANALOG_BTN_A,
+        CONTROLLER_ANALOG_BTN_B,
+        CONTROLLER_ANALOG_BTN_X,
+        CONTROLLER_ANALOG_BTN_Y,
+        -1, // DPAD LEFT
+        -1, // DPAD UP
+        -1, // DPAD RIGHT
+        -1, // DPAD DOWN
+        -1, // BACK
+        -1, // START
+        CONTROLLER_ANALOG_BTN_WHITE,
+        CONTROLLER_ANALOG_BTN_BLACK
+    };
     for (int i = 0; i < 12; i++) {
-        if (state->gp.buttons & (1 << i)) {
-            RenderDecal(g_decal_shader, frame_x + buttons[i].x,
+        if(digital_to_analog_btn_map[i] == -1) {
+            if (state->gp.buttons & (1 << i)) {
+                RenderDecal(g_decal_shader, frame_x + buttons[i].x,
+                            frame_y + buttons[i].y, buttons[i].w, buttons[i].h, 0,
+                            0, 1, 1, 0, 0, primary_color + 0xff);
+            }
+        } else {
+            uint8_t analog = state->gp.analog_buttons[digital_to_analog_btn_map[i]];
+            RenderDecal(g_decal_shader, frame_x +buttons[i].x,
                         frame_y + buttons[i].y, buttons[i].w, buttons[i].h, 0,
-                        0, 1, 1, 0, 0, primary_color + 0xff);
+                        0, 1, 1, 0, 0, primary_color + analog);
         }
     }
+
 
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // Blend with controller
 
@@ -743,11 +766,32 @@ void RenderController_S(float frame_x, float frame_y, uint32_t primary_color,
 
     // The controller has alpha cutouts where the buttons are. Draw a surface
     // behind the buttons if they are activated
+    int digital_to_analog_btn_map [12] {
+        CONTROLLER_ANALOG_BTN_A,
+        CONTROLLER_ANALOG_BTN_B,
+        CONTROLLER_ANALOG_BTN_X,
+        CONTROLLER_ANALOG_BTN_Y,
+        -1, // DPAD LEFT
+        -1, // DPAD UP
+        -1, // DPAD RIGHT
+        -1, // DPAD DOWN
+        -1, // BACK
+        -1, // START
+        CONTROLLER_ANALOG_BTN_WHITE,
+        CONTROLLER_ANALOG_BTN_BLACK
+    };
     for (int i = 0; i < 12; i++) {
-        if (state->gp.buttons & (1 << i)) {
-            RenderDecal(g_decal_shader, frame_x + buttons[i].x,
+        if(digital_to_analog_btn_map[i] == -1) {
+            if (state->gp.buttons & (1 << i)) {
+                RenderDecal(g_decal_shader, frame_x + buttons[i].x,
+                            frame_y + buttons[i].y, buttons[i].w, buttons[i].h, 0,
+                            0, 1, 1, 0, 0, primary_color + 0xff);
+            }
+        } else {
+            uint8_t analog = state->gp.analog_buttons[digital_to_analog_btn_map[i]];
+            RenderDecal(g_decal_shader, frame_x +buttons[i].x,
                         frame_y + buttons[i].y, buttons[i].w, buttons[i].h, 0,
-                        0, 1, 1, 0, 0, primary_color + 0xff);
+                        0, 1, 1, 0, 0, primary_color + analog);
         }
     }
 
@@ -1233,121 +1277,6 @@ void RenderController(float frame_x, float frame_y, uint32_t primary_color,
         RenderFightStick(frame_x, frame_y, primary_color, secondary_color, state);
     else
         RenderController_Duke(frame_x, frame_y, primary_color, secondary_color, state);
-}
-
-// Borrowed from xid.c
-#define GAMEPAD_A                0
-#define GAMEPAD_B                1
-#define GAMEPAD_X                2
-#define GAMEPAD_Y                3
-#define GAMEPAD_BLACK            4
-#define GAMEPAD_WHITE            5
-#define GAMEPAD_LEFT_TRIGGER     6
-#define GAMEPAD_RIGHT_TRIGGER    7
-
-#define GAMEPAD_DPAD_UP          8
-#define GAMEPAD_DPAD_DOWN        9
-#define GAMEPAD_DPAD_LEFT        10
-#define GAMEPAD_DPAD_RIGHT       11
-#define GAMEPAD_START            12
-#define GAMEPAD_BACK             13
-#define GAMEPAD_LEFT_THUMB       14
-#define GAMEPAD_RIGHT_THUMB      15
-
-#define BUTTON_MASK(button) (1 << ((button) - GAMEPAD_DPAD_UP))
-
-typedef struct XIDGamepadReport {
-    uint8_t  bReportId;
-    uint8_t  bLength;
-    uint16_t wButtons;
-    uint8_t  bAnalogButtons[8];
-    int16_t  sThumbLX;
-    int16_t  sThumbLY;
-    int16_t  sThumbRX;
-    int16_t  sThumbRY;
-} QEMU_PACKED XIDGamepadReport;
-
-typedef struct XIDSteelBattalionReport {
-    uint8_t     bReportId;
-    uint8_t     bLength;
-    uint32_t    dwButtons;
-    uint8_t     bMoreButtons;
-    uint16_t    wPadding;
-    uint8_t  	bAimingX;
-    uint8_t     bPadding;
-    uint8_t  	bAimingY;
-    int16_t   	sRotationLever; // only high byte is used
-    int16_t   	sSightChangeX;  // only high byte is used
-    int16_t   	sSightChangeY;  // only high byte is used
-    uint16_t    wLeftPedal;     // only high byte is used
-    uint16_t    wMiddlePedal;   // only high byte is used
-    uint16_t    wRightPedal;    // only high byte is used
-    uint8_t   	ucTunerDial;    // low nibble, The 9 o'clock postion is 0, and the 6 o'clock position is 12
-    uint8_t   	ucGearLever;    // gear lever 1~5 for gear 1~5, 7~13 for gear R,N,1~5, 15 for gear R
-} QEMU_PACKED XIDSteelBattalionReport;
-
-static void UpdateControllerState_Gamepad(ControllerState *state, XIDGamepadReport *in_state)
-{
-    const int button_map_analog[6][2] = {
-        { GAMEPAD_A,     CONTROLLER_BUTTON_A     },
-        { GAMEPAD_B,     CONTROLLER_BUTTON_B     },
-        { GAMEPAD_X,     CONTROLLER_BUTTON_X     },
-        { GAMEPAD_Y,     CONTROLLER_BUTTON_Y     },
-        { GAMEPAD_BLACK, CONTROLLER_BUTTON_BLACK },
-        { GAMEPAD_WHITE, CONTROLLER_BUTTON_WHITE },
-    };
-
-    const int button_map_binary[8][2] = {
-        { GAMEPAD_BACK,        CONTROLLER_BUTTON_BACK       },
-        { GAMEPAD_START,       CONTROLLER_BUTTON_START      },
-        { GAMEPAD_LEFT_THUMB,  CONTROLLER_BUTTON_LSTICK     },
-        { GAMEPAD_RIGHT_THUMB, CONTROLLER_BUTTON_RSTICK     },
-        { GAMEPAD_DPAD_UP,     CONTROLLER_BUTTON_DPAD_UP    },
-        { GAMEPAD_DPAD_DOWN,   CONTROLLER_BUTTON_DPAD_DOWN  },
-        { GAMEPAD_DPAD_LEFT,   CONTROLLER_BUTTON_DPAD_LEFT  },
-        { GAMEPAD_DPAD_RIGHT,  CONTROLLER_BUTTON_DPAD_RIGHT },
-    };
-
-    state->gp.buttons = 0;
-    for (int i = 0; i < 6; i++) {
-        // TODO: It'd be neat if these could be analog
-        if(in_state->bAnalogButtons[button_map_analog[i][0]] > 10)
-            state->gp.buttons |= button_map_analog[i][1];
-    }
-
-    for (int i = 0; i < 8; i++) {
-        if(in_state->wButtons & BUTTON_MASK(button_map_binary[i][0]))
-            state->gp.buttons |= button_map_binary[i][1];
-    }
-
-    state->gp.axis[CONTROLLER_AXIS_LTRIG] = (int16_t)(0x7fffL * in_state->bAnalogButtons[GAMEPAD_LEFT_TRIGGER] / 255);
-    state->gp.axis[CONTROLLER_AXIS_RTRIG] = (int16_t)(0x7fffL * in_state->bAnalogButtons[GAMEPAD_RIGHT_TRIGGER] / 255);
-    state->gp.axis[CONTROLLER_AXIS_LSTICK_X] = in_state->sThumbLX;
-    state->gp.axis[CONTROLLER_AXIS_LSTICK_Y] = in_state->sThumbLY;
-    state->gp.axis[CONTROLLER_AXIS_RSTICK_X] = in_state->sThumbRX;
-    state->gp.axis[CONTROLLER_AXIS_RSTICK_Y] = in_state->sThumbRY;
-
-    memcpy(&state->buttons, &state->gp.buttons, sizeof(state->buttons));
-    memcpy(state->axis, state->gp.axis, sizeof(state->gp.axis));
-}
-
-static void UpdateControllerState_SteelBattalionController(ControllerState *state, XIDSteelBattalionReport *in_state)
-{
-    state->sbc.buttons = (uint64_t)in_state->dwButtons;
-    state->sbc.buttons |= ((uint64_t)in_state->bMoreButtons) << 32;
-    state->sbc.toggleSwitches = in_state->bMoreButtons & 0x7C;
-
-    state->sbc.axis[SBC_AXIS_SIGHT_CHANGE_X] = in_state->sSightChangeX;
-    state->sbc.axis[SBC_AXIS_SIGHT_CHANGE_Y] = in_state->sSightChangeY;
-    state->sbc.axis[SBC_AXIS_AIMING_X] = -(int16_t)((128 - in_state->bAimingX) << 8); // Convert from uint8_t to int16_t
-    state->sbc.axis[SBC_AXIS_AIMING_Y] = -(int16_t)((128 - in_state->bAimingY) << 8); // Convert from uint8_t to int16_t
-    state->sbc.axis[SBC_AXIS_ROTATION_LEVER] = in_state->sRotationLever;
-    state->sbc.axis[SBC_AXIS_LEFT_PEDAL] = (int16_t)(in_state->wLeftPedal >> 1);
-    state->sbc.axis[SBC_AXIS_MIDDLE_PEDAL] = (int16_t)(in_state->wMiddlePedal >> 1);
-    state->sbc.axis[SBC_AXIS_RIGHT_PEDAL] = (int16_t)(in_state->wRightPedal >> 1);
-
-    state->sbc.gearLever = in_state->ucGearLever;
-    state->sbc.tunerDial = in_state->ucTunerDial;
 }
 
 void RenderController(float frame_x, float frame_y, uint32_t primary_color,

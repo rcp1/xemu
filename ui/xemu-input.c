@@ -608,8 +608,28 @@ void xemu_input_update_sdl_controller_state(ControllerState *state)
         SDL_CONTROLLER_BUTTON_GUIDE
     };
 
+    const int analog_button_map[15] = {
+        CONTROLLER_ANALOG_BTN_A,
+        CONTROLLER_ANALOG_BTN_B,
+        CONTROLLER_ANALOG_BTN_X,
+        CONTROLLER_ANALOG_BTN_Y,
+        -1, // DPAD LEFT
+        -1, // DPAD UP
+        -1, // DPAD RIGHT
+        -1, // DPAD DOWN
+        -1, // BACK
+        -1, // START
+        CONTROLLER_ANALOG_BTN_WHITE,
+        CONTROLLER_ANALOG_BTN_BLACK,
+        -1, // LEFTSTICK
+        -1, // RIGHTSTICK
+        -1, // GUIDE
+    };
+
     for (int i = 0; i < 15; i++) {
         state->gp.buttons |= SDL_GameControllerGetButton(state->sdl_gamecontroller, sdl_button_map[i]) << i;
+        if(analog_button_map[i] != -1)
+            state->gp.analog_buttons[analog_button_map[i]] = state->gp.buttons & (1 << i) ? 0xff : 0x00; // SDL buttons are on/off, so make the analog value 255
     }
 
     const SDL_GameControllerAxis sdl_axis_map[6] = {

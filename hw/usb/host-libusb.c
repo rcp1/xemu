@@ -40,7 +40,7 @@
 #endif
 #include "host-libusb.h"
 
-#define USE_SYNC_INTERRUPTS 0
+#define USE_SYNC_INTERRUPTS 1
 
 #ifdef CONFIG_LINUX
 #include <sys/ioctl.h>
@@ -1615,6 +1615,17 @@ static void usb_host_handle_data(USBDevice *udev, USBPacket *p)
         if(rc == LIBUSB_TRANSFER_COMPLETED) {
             if(p->pid == USB_TOKEN_IN && actual_length > 0) {
                 usb_packet_copy(p, buffer, actual_length);
+                LibusbDevice *dev = find_libusb_device(s->bus_num, s->port);
+                if(dev != NULL) {
+                    if(dev->buffer == NULL)
+                        dev->buffer = g_malloc(actual_length);
+                    else if(dev->buf_len < actual_length) {
+                        g_free(dev->buffer);
+                        dev->buffer = g_malloc(actual_length);
+                    }
+                    dev->buf_len = actual_length;
+                    memcpy(dev->buffer, buffer, actual_length);
+                }
             }
         }
         if(buffer != NULL)

@@ -340,13 +340,13 @@ void MainMenuInputView::Draw()
         ImGui::SetCursorPosX(cur.x + (controller_display_size.x-dim.x)/2);
         ImGui::SetCursorPosY(cur.y + (controller_display_size.y-dim.y)/2);
         ImGui::Text("%s", msg);
-    } // else if (bound_device && !bound_device->buffer) {
-    //     const char *msg = "USB Passthrough device can't be displayed";
-    //     ImVec2 dim = ImGui::CalcTextSize(msg);
-    //     ImGui::SetCursorPosX(cur.x + (controller_display_size.x-dim.x)/2);
-    //     ImGui::SetCursorPosY(cur.y + (controller_display_size.y-dim.y)/2);
-    //     ImGui::Text("%s", msg);
-    // }
+    } else if (bound_device) {
+        const char *msg = "Disclaimer: USB Passthrough devices only update\nwhen a request is received from the kernel";
+        ImVec2 dim = ImGui::CalcTextSize(msg);
+        ImGui::SetCursorPosX(cur.x + (controller_display_size.x-dim.x)/2);
+        ImGui::SetCursorPosY(cur.y + 5);
+        ImGui::Text("%s", msg);
+    }
 
     controller_fbo->Restore();
 
