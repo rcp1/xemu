@@ -236,8 +236,6 @@ void MainMenuInputView::Draw()
 
         // Handle all available input devices
         if(strcmp(bound_drivers[active], DRIVER_USB_PASSTHROUGH) == 0) {
-            get_libusb_devices();
-
             LibusbDevice *iter;
             QTAILQ_FOREACH(iter, &available_libusb_devices, entry) {
                 is_selected = bound_device == iter;

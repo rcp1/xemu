@@ -142,6 +142,8 @@ void xemu_input_init(void)
         exit(1);
     }
 
+    xemu_init_libusb_passthrough();
+
     // Create the keyboard input (always first)
     ControllerState *new_con = malloc(sizeof(ControllerState));
     memset(new_con, 0, sizeof(ControllerState));
@@ -253,10 +255,7 @@ void xemu_input_init(void)
     bound_drivers[2] = get_bound_driver(2);
     bound_drivers[3] = get_bound_driver(3);
 
-    get_libusb_devices();
-
     LibusbDevice *iter;
-
     LibusbDevice *devices_to_bind[4] = { NULL, NULL, NULL, NULL };
 
     QTAILQ_FOREACH(iter, &available_libusb_devices, entry) {
