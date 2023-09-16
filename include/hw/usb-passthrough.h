@@ -51,10 +51,9 @@ typedef struct LibusbDevice {
 typedef QTAILQ_HEAD(, LibusbDevice) LibusbDeviceList;
 extern LibusbDeviceList available_libusb_devices;
 
-void xemu_init_libusb_passthrough(void);
+void xemu_init_libusb_passthrough(void (*device_connected_callback)(LibusbDevice *), void (*device_disconnected_callback)(LibusbDevice *));
 void xemu_shutdown_libusb_passthrough(void);
-void get_libusb_devices(void);
-LibusbDevice *find_libusb_device(int host_bus, const char *host_port);
+LibusbDevice *find_libusb_device(int host_bus, const char *port);
 
 #ifdef __cplusplus
 }

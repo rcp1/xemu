@@ -131,6 +131,31 @@ const char *get_bound_driver(int port) {
     return DRIVER_DUKE;
 }
 
+static void libusb_device_connected(LibusbDevice *device) {
+
+    int p = xemu_input_get_libusb_device_default_bind_port(device, 0);
+
+    assert(p >= -1 && p < 4);
+
+    if(p >= 0 && !bound_libusb_devices[p] && !bound_controllers[p]) {
+        xemu_input_bind_passthrough(p, device, 1);
+
+        char buf[128];
+        snprintf(buf, sizeof(buf), "Connected '%s' to port %d", device->name, p+1);
+        xemu_queue_notification(buf);
+    }
+}
+
+static void libusb_device_disconnected(LibusbDevice *device) {
+    if(device->bound) {
+        char buf[128];
+        snprintf(buf, 128, "Port %d Disconnected", device->bound + 1);
+        xemu_queue_notification(buf);
+
+        xemu_input_bind_passthrough(device->bound, NULL, 0);
+    }
+}
+
 void xemu_input_init(void)
 {
     if (g_config.input.background_input_capture) {
@@ -142,7 +167,7 @@ void xemu_input_init(void)
         exit(1);
     }
 
-    xemu_init_libusb_passthrough();
+    xemu_init_libusb_passthrough(libusb_device_connected, libusb_device_disconnected);
 
     // Create the keyboard input (always first)
     ControllerState *new_con = malloc(sizeof(ControllerState));
@@ -254,23 +279,6 @@ void xemu_input_init(void)
     bound_drivers[1] = get_bound_driver(1);
     bound_drivers[2] = get_bound_driver(2);
     bound_drivers[3] = get_bound_driver(3);
-
-    LibusbDevice *iter;
-    LibusbDevice *devices_to_bind[4] = { NULL, NULL, NULL, NULL };
-
-    QTAILQ_FOREACH(iter, &available_libusb_devices, entry) {
-        if(iter->bound < 0) {
-            int p = xemu_input_get_libusb_device_default_bind_port(iter, 0);
-            if(p >= 0) {
-                devices_to_bind[p] = iter;
-            }
-        }
-    }
-
-    for(int i = 0; i < 4; i++) {
-        if(devices_to_bind[i] != NULL)
-            xemu_input_bind_passthrough(i, devices_to_bind[i], 1);
-    }
 
     // Check to see if we should auto-bind the keyboard
     int port = xemu_input_get_controller_default_bind_port(new_con, 0);

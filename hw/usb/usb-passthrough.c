@@ -8,7 +8,6 @@
 #include <assert.h>
 #include "qemu/timer.h"
 #include "../../ui/xemu-notifications.h"
-//#include "qemu/thread.h"
 
 /*
  * XEMU USB PASSTHROUGH API
@@ -36,14 +35,16 @@
 
 // ...from ui/xemu-input.h
 void xemu_input_bind_passthrough(int index, LibusbDevice *device, int save);
+static void get_libusb_devices(void);
 
 static QEMUTimer *libusb_timer= NULL;
+static void (*device_connected_callback)(LibusbDevice *) = NULL;
+static void (*device_disconnected_callback)(LibusbDevice *) = NULL;
 
 #define LIBUSB_TIMER_DELAY 200
 
 static void libusb_timer_callback(void *opaque)
 {
-    printf("DEBUG: libusb timer callback\n");
     get_libusb_devices();
 
     int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
@@ -53,7 +54,6 @@ static void libusb_timer_callback(void *opaque)
 
 static void xemu_create_libusb_passthrough_timer(void)
 {
-    printf("DEBUG: Creating libusb timer\n");
     libusb_timer = timer_new(QEMU_CLOCK_VIRTUAL, SCALE_MS, libusb_timer_callback, NULL);
 
     int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
@@ -113,9 +113,13 @@ known_libusb_device wellKnownDevices[] = {
 LibusbDeviceList available_libusb_devices =
     QTAILQ_HEAD_INITIALIZER(available_libusb_devices);
 
-void xemu_init_libusb_passthrough(void)
+void xemu_init_libusb_passthrough(void (*on_connected_callback)(LibusbDevice *), void (*on_disconnected_callback)(LibusbDevice *))
 {
     printf("DEBUG: Initializing libusb passthrough\n");
+
+    device_connected_callback = on_connected_callback;
+    device_disconnected_callback = on_disconnected_callback;
+    
     get_libusb_devices();
     xemu_create_libusb_passthrough_timer();
 }
@@ -129,18 +133,16 @@ void xemu_shutdown_libusb_passthrough(void)
     }
 }
 
-void get_libusb_devices(void)
+static void get_libusb_devices(void)
 {
-    printf("DEBUG: get_libusb_devices\n");
-
-    libusb_device **devs = NULL;
+    struct libusb_device **devs = NULL;
     struct libusb_device_descriptor ddesc;
     unsigned int bus;
     unsigned short vendor_id, product_id;
     char port[16];
     int i, j, n, hub_ports;
     const char *name;
-    LibusbDevice *iter;
+    LibusbDevice *iter, *iter2;
     bool previously_detected;
 
     if (usb_host_init() != 0) {
@@ -206,36 +208,34 @@ void get_libusb_devices(void)
         device->detected = true;
         device->internal_hub_ports = hub_ports;
 
+        if(device_connected_callback != NULL)
+            device_connected_callback(device);
+
         QTAILQ_INSERT_TAIL(&available_libusb_devices, device, entry);
     }
 
     // Remove any devices that aren't detected anymore
-    QTAILQ_FOREACH(iter, &available_libusb_devices, entry) {
+    QTAILQ_FOREACH_SAFE(iter, &available_libusb_devices, entry, iter2) {
         if(!iter->detected) {
-            if(iter->bound >= 0) {
-                
-                char buf[128];
-                snprintf(buf, sizeof(buf), "Port %d disconnected", iter->bound+1);
-                xemu_queue_notification(buf);
-                
-                xemu_input_bind_passthrough(iter->bound, NULL, 1);
-            }
+            if(device_disconnected_callback != NULL)
+                device_disconnected_callback(iter);
+
             QTAILQ_REMOVE(&available_libusb_devices, iter, entry);
-            iter = QTAILQ_FIRST(&available_libusb_devices);
+            g_free(iter);
         }
     }
 
     libusb_free_device_list(devs, 1);
 }
 
-LibusbDevice *find_libusb_device(int host_bus, const char *host_port)
-{
+LibusbDevice *find_libusb_device(int host_bus, const char *port) {
     LibusbDevice *iter;
     QTAILQ_FOREACH(iter, &available_libusb_devices, entry) {
         if (iter->host_bus == host_bus &&
-            strcmp(iter->host_port, host_port) == 0) {
+            strcmp(iter->host_port, port) == 0) {
             return iter;
         }
     }
+
     return NULL;
 }

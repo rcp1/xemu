@@ -1822,8 +1822,8 @@ static void ohci_child_detach(USBPort *port1, USBDevice *dev)
 {
     OHCIState *ohci = port1->opaque;
 
-    USBActivePacket *iter;
-    QTAILQ_FOREACH(iter, &ohci->active_packets, next) {
+    USBActivePacket *iter, *iter2;
+    QTAILQ_FOREACH_SAFE(iter, &ohci->active_packets, next, iter2) {
         if(iter->usb_packet.ep->dev == dev) {
             if (iter->async_td &&
                 usb_packet_is_inflight(&iter->usb_packet) &&
@@ -1834,9 +1834,6 @@ static void ohci_child_detach(USBPort *port1, USBDevice *dev)
 
             QTAILQ_REMOVE(&ohci->active_packets, iter, next);
             g_free(iter);
-
-            // We don't know which one just got removed, so start over at the beginning
-            iter = iter = QTAILQ_FIRST(&ohci->active_packets);
         }
     }
 }
