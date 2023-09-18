@@ -138,6 +138,7 @@ static void libusb_device_connected(LibusbDevice *device) {
     assert(p >= -1 && p < 4);
 
     if(p >= 0 && !bound_libusb_devices[p] && !bound_controllers[p]) {
+        bound_drivers[p] = DRIVER_USB_PASSTHROUGH;
         xemu_input_bind_passthrough(p, device, 1);
 
         char buf[128];
@@ -147,7 +148,7 @@ static void libusb_device_connected(LibusbDevice *device) {
 }
 
 static void libusb_device_disconnected(LibusbDevice *device) {
-    if(device->bound) {
+    if(device->bound >= 0) {
         char buf[128];
         snprintf(buf, 128, "Port %d Disconnected", device->bound + 1);
         xemu_queue_notification(buf);
@@ -924,7 +925,7 @@ void xemu_input_bind_passthrough(int index, LibusbDevice *state, int save)
         if(state) {
             if (state->bound >= 0) {
                 // Device was already bound to another port. Unbind it.
-                xemu_input_bind_passthrough(state->bound, NULL, 1);
+                xemu_input_bind_passthrough(state->bound, NULL, state->bound != index);
             }
 
             bound_libusb_devices[index] = state;

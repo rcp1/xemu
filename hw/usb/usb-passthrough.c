@@ -33,8 +33,6 @@
  * THE SOFTWARE.
  */
 
-// ...from ui/xemu-input.h
-void xemu_input_bind_passthrough(int index, LibusbDevice *device, int save);
 static void get_libusb_devices(void);
 
 static QEMUTimer *libusb_timer= NULL;
