@@ -25,6 +25,7 @@
  * THE SOFTWARE.
  */
 
+#include "qemu/osdep.h"
 #include "qemu/queue.h"
 
 #ifdef __cplusplus

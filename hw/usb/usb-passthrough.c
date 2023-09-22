@@ -1,14 +1,3 @@
-#include <libusb.h>
-#include <stdbool.h>
-#include <stdio.h>
-#include "glib-compat.h"
-#include "hw/usb-passthrough.h"
-#include "host-libusb.h"
-#include "qemu/typedefs.h"
-#include <assert.h>
-#include "qemu/timer.h"
-#include "../../ui/xemu-notifications.h"
-
 /*
  * XEMU USB PASSTHROUGH API
  *
@@ -32,6 +21,22 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
+#include "hw/usb-passthrough.h"
+
+#ifdef CONFIG_USB_LIBUSB
+    #include "glib-compat.h"
+    #include <libusb.h>
+    #include "qemu/typedefs.h"
+    #include "qemu/timer.h"
+    #include "host-libusb.h"
+    #include <assert.h>
+#endif
+
+LibusbDeviceList available_libusb_devices =
+    QTAILQ_HEAD_INITIALIZER(available_libusb_devices);
+
+#ifdef CONFIG_USB_LIBUSB
 
 static void get_libusb_devices(void);
 
@@ -107,9 +112,6 @@ known_libusb_device wellKnownDevices[] = {
 };
 
 #define NUM_KNOWN_XID_DEVICES ARRAY_SIZE(wellKnownDevices)
-
-LibusbDeviceList available_libusb_devices =
-    QTAILQ_HEAD_INITIALIZER(available_libusb_devices);
 
 void xemu_init_libusb_passthrough(void (*on_connected_callback)(LibusbDevice *), void (*on_disconnected_callback)(LibusbDevice *))
 {
@@ -237,3 +239,21 @@ LibusbDevice *find_libusb_device(int host_bus, const char *port) {
 
     return NULL;
 }
+
+#else
+
+void xemu_init_libusb_passthrough(void (*on_connected_callback)(LibusbDevice *), void (*on_disconnected_callback)(LibusbDevice *))
+{
+    // Do Nothing
+}
+
+void xemu_shutdown_libusb_passthrough(void)
+{
+    // Do Nothing
+}
+
+LibusbDevice *find_libusb_device(int host_bus, const char *port) {
+    return NULL;
+}
+
+#endif
