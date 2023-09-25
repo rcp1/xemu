@@ -115,8 +115,6 @@ known_libusb_device wellKnownDevices[] = {
 
 void xemu_init_libusb_passthrough(void (*on_connected_callback)(LibusbDevice *), void (*on_disconnected_callback)(LibusbDevice *))
 {
-    printf("DEBUG: Initializing libusb passthrough\n");
-
     device_connected_callback = on_connected_callback;
     device_disconnected_callback = on_disconnected_callback;
     
@@ -126,7 +124,6 @@ void xemu_init_libusb_passthrough(void (*on_connected_callback)(LibusbDevice *),
 
 void xemu_shutdown_libusb_passthrough(void)
 {
-    printf("DEBUG: Shutting down libusb passthrough\n");
     xemu_destroy_libusb_passthrough_timer();
     while(QTAILQ_EMPTY(&available_libusb_devices)) {
         QTAILQ_REMOVE(&available_libusb_devices, QTAILQ_FIRST(&available_libusb_devices), entry);
