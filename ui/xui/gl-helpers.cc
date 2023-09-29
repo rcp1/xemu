@@ -1292,12 +1292,12 @@ void RenderController(float frame_x, float frame_y, uint32_t primary_color,
             xemu_input_update_gamepad(&fake_state, (XIDGamepadReport*)state->buffer);
         }
         RenderController_S(frame_x, frame_y, primary_color, secondary_color, &fake_state);   
-    } else if(state->type, Gamepad) {
+    } else if(state->type == Gamepad) {
         if(state->buffer != NULL) {
             xemu_input_update_gamepad(&fake_state, (XIDGamepadReport*)state->buffer);
         }
         RenderController_Duke(frame_x, frame_y, primary_color, secondary_color, &fake_state);
-    } else if(state->type, SteelBattalionController) {
+    } else if(state->type == SteelBattalionController) {
         if(state->buffer != NULL) {
             xemu_input_update_steel_battalion(&fake_state, (XIDSteelBattalionReport*)state->buffer);
         }
