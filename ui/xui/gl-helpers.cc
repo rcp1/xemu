@@ -1271,9 +1271,9 @@ void RenderController(float frame_x, float frame_y, uint32_t primary_color,
 {
     if(strcmp(bound_drivers[state->bound], DRIVER_S) == 0)
         RenderController_S(frame_x, frame_y, primary_color, secondary_color, state);
-    else if(strcmp(bound_drivers[state->bound], DRIVER_SB) == 0)
+    else if(strcmp(bound_drivers[state->bound], DRIVER_STEEL_BATTALION) == 0)
         RenderController_SB(frame_x, frame_y, primary_color, secondary_color, state);
-    else if(strcmp(bound_drivers[state->bound], DRIVER_FIGHT_STICK) == 0)
+    else if(strcmp(bound_drivers[state->bound], DRIVER_ARCADE_STICK) == 0)
         RenderFightStick(frame_x, frame_y, primary_color, secondary_color, state);
     else
         RenderController_Duke(frame_x, frame_y, primary_color, secondary_color, state);
