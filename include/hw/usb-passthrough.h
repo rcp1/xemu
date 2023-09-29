@@ -32,6 +32,13 @@
 extern "C" {
 #endif
 
+typedef enum XidDeviceType {
+    Gamepad,
+    GamepadS,
+    ArcadeStick,
+    SteelBattalionController
+} XidDeviceType;
+
 typedef struct LibusbDevice {
     QTAILQ_ENTRY(LibusbDevice) entry;
 
@@ -44,7 +51,8 @@ typedef struct LibusbDevice {
     int bound;                                                      // internal port that this controller is bound to
     int internal_hub_ports;                                         // Number of ports on the internal hub. This value is 0 if there is no internal hub
     void *device;                                                   // The root device of the controller
-    //void (*input_buffer_changed)(size_t buf_len, uint8_t *buffer);  // This function is called when the input buffer of the device is updated
+    
+    XidDeviceType type;
     uint8_t *buffer;
     size_t buf_len;
 } LibusbDevice;

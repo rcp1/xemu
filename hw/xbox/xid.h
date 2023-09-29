@@ -79,13 +79,6 @@ typedef struct XIDDesc {
     uint16_t wAlternateProductIds[4];
 } QEMU_PACKED XIDDesc;
 
-typedef struct XIDGamepadOutputReport {
-    uint8_t  report_id; //FIXME: is this correct?
-    uint8_t  length;
-    uint16_t left_actuator_strength;
-    uint16_t right_actuator_strength;
-} QEMU_PACKED XIDGamepadOutputReport;
-
 typedef struct USBXIDGamepadState {
     USBDevice               dev;
     USBEndpoint            *intr;

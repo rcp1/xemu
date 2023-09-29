@@ -20,6 +20,7 @@
  */
 
 #include "xid.h"
+#include "../../ui/xemu-input.h"
 
 //#define DEBUG_XID
 #ifdef DEBUG_XID

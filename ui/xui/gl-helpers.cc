@@ -32,7 +32,6 @@
 #include "data/xemu_64x64.png.h"
 #include "notifications.hh"
 #include "ui/xemu-widescreen.h"
-#include "hw/xid.h"
 
 Fbo *controller_fbo,
     *logo_fbo;
@@ -865,7 +864,7 @@ void RenderController_S(float frame_x, float frame_y, uint32_t primary_color,
     glUseProgram(0);
 }
 
-void RenderController_SB(float frame_x, float frame_y, uint32_t primary_color,
+void RenderController_SteelBattalion(float frame_x, float frame_y, uint32_t primary_color,
                       uint32_t secondary_color, ControllerState *state)
 {
     // Location within the controller texture of masked button locations,
@@ -1173,7 +1172,7 @@ void RenderController_SB(float frame_x, float frame_y, uint32_t primary_color,
 }
 
 
-void RenderFightStick(float frame_x, float frame_y, uint32_t primary_color,
+void RenderArcadeStick(float frame_x, float frame_y, uint32_t primary_color,
                       uint32_t secondary_color, ControllerState *state)
 {
     // Location within the controller texture of masked button locations,
@@ -1272,9 +1271,9 @@ void RenderController(float frame_x, float frame_y, uint32_t primary_color,
     if(strcmp(bound_drivers[state->bound], DRIVER_S) == 0)
         RenderController_S(frame_x, frame_y, primary_color, secondary_color, state);
     else if(strcmp(bound_drivers[state->bound], DRIVER_STEEL_BATTALION) == 0)
-        RenderController_SB(frame_x, frame_y, primary_color, secondary_color, state);
+        RenderController_SteelBattalion(frame_x, frame_y, primary_color, secondary_color, state);
     else if(strcmp(bound_drivers[state->bound], DRIVER_ARCADE_STICK) == 0)
-        RenderFightStick(frame_x, frame_y, primary_color, secondary_color, state);
+        RenderArcadeStick(frame_x, frame_y, primary_color, secondary_color, state);
     else
         RenderController_Duke(frame_x, frame_y, primary_color, secondary_color, state);
 }
@@ -1288,26 +1287,26 @@ void RenderController(float frame_x, float frame_y, uint32_t primary_color,
     ControllerState fake_state;
     memset(&fake_state, 0, sizeof(ControllerState));
 
-    if(strcmp(state->name, "Xbox Controller S") == 0) {
+    if(state->type == GamepadS) {
         if(state->buffer != NULL) {
-            UpdateControllerState_Gamepad(&fake_state, (XIDGamepadReport*)state->buffer);
+            xemu_input_update_gamepad(&fake_state, (XIDGamepadReport*)state->buffer);
         }
         RenderController_S(frame_x, frame_y, primary_color, secondary_color, &fake_state);   
-    } else if(strcmp(state->name, "Xbox Controller") == 0) {
+    } else if(state->type, Gamepad) {
         if(state->buffer != NULL) {
-            UpdateControllerState_Gamepad(&fake_state, (XIDGamepadReport*)state->buffer);
+            xemu_input_update_gamepad(&fake_state, (XIDGamepadReport*)state->buffer);
         }
         RenderController_Duke(frame_x, frame_y, primary_color, secondary_color, &fake_state);
-    } else if(strcmp(state->name, "Steel Battalion Controller") == 0) {
+    } else if(state->type, SteelBattalionController) {
         if(state->buffer != NULL) {
-            UpdateControllerState_SteelBattalionController(&fake_state, (XIDSteelBattalionReport*)state->buffer);
+            xemu_input_update_steel_battalion(&fake_state, (XIDSteelBattalionReport*)state->buffer);
         }
-        RenderController_SB(frame_x, frame_y, primary_color, secondary_color, &fake_state);
-    } else if(strcmp(state->name, "HORI Fight Stick") == 0) {
+        RenderController_SteelBattalion(frame_x, frame_y, primary_color, secondary_color, &fake_state);
+    } else if(state->type == ArcadeStick) {
         if(state->buffer != NULL) {
-            UpdateControllerState_Gamepad(&fake_state, (XIDGamepadReport*)state->buffer);
+            xemu_input_update_gamepad(&fake_state, (XIDGamepadReport*)state->buffer);
         }
-        RenderFightStick(frame_x, frame_y, primary_color, secondary_color, &fake_state);
+        RenderArcadeStick(frame_x, frame_y, primary_color, secondary_color, &fake_state);
     }
 }
 

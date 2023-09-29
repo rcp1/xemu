@@ -980,3 +980,68 @@ int xemu_input_get_test_mode(void)
 {
     return test_mode;
 }
+
+void xemu_input_update_gamepad(ControllerState *state, XIDGamepadReport *in_state)
+{
+    const int button_map_analog[6][2] = {
+        { GAMEPAD_A,     CONTROLLER_BUTTON_A     },
+        { GAMEPAD_B,     CONTROLLER_BUTTON_B     },
+        { GAMEPAD_X,     CONTROLLER_BUTTON_X     },
+        { GAMEPAD_Y,     CONTROLLER_BUTTON_Y     },
+        { GAMEPAD_BLACK, CONTROLLER_BUTTON_BLACK },
+        { GAMEPAD_WHITE, CONTROLLER_BUTTON_WHITE },
+    };
+
+    const int button_map_binary[8][2] = {
+        { GAMEPAD_BACK,        CONTROLLER_BUTTON_BACK       },
+        { GAMEPAD_START,       CONTROLLER_BUTTON_START      },
+        { GAMEPAD_LEFT_THUMB,  CONTROLLER_BUTTON_LSTICK     },
+        { GAMEPAD_RIGHT_THUMB, CONTROLLER_BUTTON_RSTICK     },
+        { GAMEPAD_DPAD_UP,     CONTROLLER_BUTTON_DPAD_UP    },
+        { GAMEPAD_DPAD_DOWN,   CONTROLLER_BUTTON_DPAD_DOWN  },
+        { GAMEPAD_DPAD_LEFT,   CONTROLLER_BUTTON_DPAD_LEFT  },
+        { GAMEPAD_DPAD_RIGHT,  CONTROLLER_BUTTON_DPAD_RIGHT },
+    };
+
+    state->gp.buttons = 0;
+    for (int i = 0; i < 6; i++) {
+        state->gp.analog_buttons[i] = in_state->bAnalogButtons[button_map_analog[i][0]];
+        if(state->gp.analog_buttons[i] > 10)
+            state->gp.buttons |= button_map_analog[i][1];
+    }
+
+    for (int i = 0; i < 8; i++) {
+        if(in_state->wButtons & BUTTON_MASK(button_map_binary[i][0]))
+            state->gp.buttons |= button_map_binary[i][1];
+    }
+
+    state->gp.axis[CONTROLLER_AXIS_LTRIG] = (int16_t)(0x7fffL * in_state->bAnalogButtons[GAMEPAD_LEFT_TRIGGER] / 255);
+    state->gp.axis[CONTROLLER_AXIS_RTRIG] = (int16_t)(0x7fffL * in_state->bAnalogButtons[GAMEPAD_RIGHT_TRIGGER] / 255);
+    state->gp.axis[CONTROLLER_AXIS_LSTICK_X] = in_state->sThumbLX;
+    state->gp.axis[CONTROLLER_AXIS_LSTICK_Y] = in_state->sThumbLY;
+    state->gp.axis[CONTROLLER_AXIS_RSTICK_X] = in_state->sThumbRX;
+    state->gp.axis[CONTROLLER_AXIS_RSTICK_Y] = in_state->sThumbRY;
+
+    memcpy(&state->buttons, &state->gp.buttons, sizeof(state->buttons));
+    memcpy(state->analog_buttons, state->gp.analog_buttons, sizeof(state->gp.analog_buttons));
+    memcpy(state->axis, state->gp.axis, sizeof(state->gp.axis));
+}
+
+void xemu_input_update_steel_battalion(ControllerState *state, XIDSteelBattalionReport *in_state)
+{
+    state->sbc.buttons = (uint64_t)in_state->dwButtons;
+    state->sbc.buttons |= ((uint64_t)in_state->bMoreButtons) << 32;
+    state->sbc.toggleSwitches = in_state->bMoreButtons & 0x7C;
+
+    state->sbc.axis[SBC_AXIS_SIGHT_CHANGE_X] = in_state->sSightChangeX;
+    state->sbc.axis[SBC_AXIS_SIGHT_CHANGE_Y] = in_state->sSightChangeY;
+    state->sbc.axis[SBC_AXIS_AIMING_X] = (int16_t)((in_state->bAimingX - 128) << 8); // Convert from uint8_t to int16_t
+    state->sbc.axis[SBC_AXIS_AIMING_Y] = (int16_t)((in_state->bAimingY - 128) << 8); // Convert from uint8_t to int16_t
+    state->sbc.axis[SBC_AXIS_ROTATION_LEVER] = in_state->sRotationLever;
+    state->sbc.axis[SBC_AXIS_LEFT_PEDAL] = (int16_t)(in_state->wLeftPedal >> 1);     // Convert from uint16_t to int16_t
+    state->sbc.axis[SBC_AXIS_MIDDLE_PEDAL] = (int16_t)(in_state->wMiddlePedal >> 1); // Convert from uint16_t to int16_t
+    state->sbc.axis[SBC_AXIS_RIGHT_PEDAL] = (int16_t)(in_state->wRightPedal >> 1);   // Convert from uint16_t to int16_t
+
+    state->sbc.gearLever = in_state->ucGearLever;
+    state->sbc.tunerDial = in_state->ucTunerDial;
+}

@@ -20,6 +20,7 @@
  */
 
 #include "xid.h"
+#include "../../ui/xemu-input.h"
 
 //#define DEBUG_XID
 #ifdef DEBUG_XID
@@ -32,12 +33,6 @@
 
 #define STEEL_BATTALION_IN_ENDPOINT_ID 0x02
 #define STEEL_BATTALION_OUT_ENDPOINT_ID 0x01
-
-typedef struct XIDSteelBattalionOutputReport {
-    uint8_t report_id;
-    uint8_t length;
-    uint8_t led_data[32]; // Not Used
-} QEMU_PACKED XIDSteelBattalionOutputReport;
 
 typedef struct USBXIDSteelBattalionState {
     USBDevice                       dev;
@@ -357,25 +352,6 @@ static const TypeInfo usb_steel_battalion_info = {
 static void usb_xid_register_types(void)
 {
     type_register_static(&usb_steel_battalion_info);
-}
-
-void UpdateControllerState_SteelBattalionController(ControllerState *state, XIDSteelBattalionReport *in_state)
-{
-    state->sbc.buttons = (uint64_t)in_state->dwButtons;
-    state->sbc.buttons |= ((uint64_t)in_state->bMoreButtons) << 32;
-    state->sbc.toggleSwitches = in_state->bMoreButtons & 0x7C;
-
-    state->sbc.axis[SBC_AXIS_SIGHT_CHANGE_X] = in_state->sSightChangeX;
-    state->sbc.axis[SBC_AXIS_SIGHT_CHANGE_Y] = in_state->sSightChangeY;
-    state->sbc.axis[SBC_AXIS_AIMING_X] = (int16_t)((in_state->bAimingX - 128) << 8); // Convert from uint8_t to int16_t
-    state->sbc.axis[SBC_AXIS_AIMING_Y] = (int16_t)((in_state->bAimingY - 128) << 8); // Convert from uint8_t to int16_t
-    state->sbc.axis[SBC_AXIS_ROTATION_LEVER] = in_state->sRotationLever;
-    state->sbc.axis[SBC_AXIS_LEFT_PEDAL] = (int16_t)(in_state->wLeftPedal >> 1);     // Convert from uint16_t to int16_t
-    state->sbc.axis[SBC_AXIS_MIDDLE_PEDAL] = (int16_t)(in_state->wMiddlePedal >> 1); // Convert from uint16_t to int16_t
-    state->sbc.axis[SBC_AXIS_RIGHT_PEDAL] = (int16_t)(in_state->wRightPedal >> 1);   // Convert from uint16_t to int16_t
-
-    state->sbc.gearLever = in_state->ucGearLever;
-    state->sbc.tunerDial = in_state->ucTunerDial;
 }
 
 type_init(usb_xid_register_types)

@@ -28,6 +28,7 @@
 #include <SDL2/SDL.h>
 #include "qemu/queue.h"
 #include "hw/usb-passthrough.h"
+#include "hw/xid.h"
 
 #define DRIVER_DUKE "usb-xbox-gamepad"
 #define DRIVER_S "usb-xbox-gamepad-s"
@@ -228,6 +229,10 @@ int xemu_input_get_libusb_device_default_bind_port(LibusbDevice *device, int sta
 
 void xemu_input_set_test_mode(int enabled);
 int xemu_input_get_test_mode(void);
+
+void xemu_input_update_gamepad(ControllerState *state, XIDGamepadReport *in_state);
+void xemu_input_update_steel_battalion(ControllerState *state, XIDSteelBattalionReport *in_state);
+
 
 #ifdef __cplusplus
 }

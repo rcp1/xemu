@@ -21,7 +21,6 @@
 //
 
 #include "qemu/compiler.h"
-#include "ui/xemu-input.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -37,6 +36,13 @@ typedef struct XIDGamepadReport {
     int16_t  sThumbRX;
     int16_t  sThumbRY;
 } QEMU_PACKED XIDGamepadReport;
+
+typedef struct XIDGamepadOutputReport {
+    uint8_t  report_id; //FIXME: is this correct?
+    uint8_t  length;
+    uint16_t left_actuator_strength;
+    uint16_t right_actuator_strength;
+} QEMU_PACKED XIDGamepadOutputReport;
 
 typedef struct XIDSteelBattalionReport {
     uint8_t     bReportId;
@@ -57,6 +63,12 @@ typedef struct XIDSteelBattalionReport {
     uint8_t   	ucGearLever;    // gear lever 1~5 for gear 1~5, 7~13 for gear R,N,1~5, 15 for gear R
 } QEMU_PACKED XIDSteelBattalionReport;
 
+typedef struct XIDSteelBattalionOutputReport {
+    uint8_t report_id;
+    uint8_t length;
+    uint8_t led_data[32]; // Not Used
+} QEMU_PACKED XIDSteelBattalionOutputReport;
+
 #define GAMEPAD_A                0
 #define GAMEPAD_B                1
 #define GAMEPAD_X                2
@@ -76,9 +88,6 @@ typedef struct XIDSteelBattalionReport {
 #define GAMEPAD_RIGHT_THUMB      15
 
 #define BUTTON_MASK(button) (1 << ((button) - GAMEPAD_DPAD_UP))
-
-void UpdateControllerState_Gamepad(ControllerState *state, XIDGamepadReport *in_state);
-void UpdateControllerState_SteelBattalionController(ControllerState *state, XIDSteelBattalionReport *in_state);
 
 #ifdef __cplusplus
 }

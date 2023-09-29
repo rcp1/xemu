@@ -75,40 +75,18 @@ typedef struct known_libusb_device {
     unsigned short product_id;
     const char *name;
     int hub_ports;
+    XidDeviceType type;
 } known_libusb_device;
 
 const char *unknownDeviceName = "Unknown Device";
 
 known_libusb_device wellKnownDevices[] = {
-    { 0x0d2f, 0x0002, "Andamiro Pump It Up pad", 3 },
-	{ 0x045e, 0x0202, "Xbox Controller", 3 },
-    { 0x045e, 0x0285, "Xbox Controller S", 3 },
-    { 0x045e, 0x0287, "Xbox Controller S", 3 },
-    { 0x045e, 0x0289, "Xbox Controller S", 3 },
-    { 0x046d, 0xca84, "Logitech Xbox Cordless Controller", 3 },
-    { 0x046d, 0xca88, "Logitech Compact Controller for Xbox", 3 },
-    { 0x05fd, 0x1007, "Mad Catz Controller (unverified)", 3 },
-    { 0x05fd, 0x107a, "InterAct 'PowerPad Pro' X-Box pad (Germany)", 3 },
-    { 0x0738, 0x4516, "Mad Catz Control Pad", 3 },
-    { 0x0738, 0x4522, "Mad Catz LumiCON", 3 },
-    { 0x0738, 0x4526, "Mad Catz Control Pad Pro", 3 },
-    { 0x0738, 0x4536, "Mad Catz MicroCON", 3 },
-    { 0x0738, 0x4556, "Mad Catz Lynx Wireless Controller", 3 },
-    { 0x0c12, 0x8802, "Zeroplus Xbox Controller", 3 },
-    { 0x0c12, 0x8810, "Zeroplus Xbox Controller", 3 },
-    { 0x0c12, 0x9902, "HAMA VibraX - *FAULTY HARDWARE*", 3 },
-    { 0x0e4c, 0x1097, "Radica Gamester Controller", 3 },
-    { 0x0e4c, 0x2390, "Radica Games Jtech Controller", 3 },
-    { 0x0e6f, 0x0003, "Logic3 Freebird wireless Controller", 3 },
-    { 0x0e6f, 0x0005, "Eclipse wireless Controller", 3 },
-    { 0x0e6f, 0x0006, "Edge wireless Controller", 3 },
-    { 0x0f30, 0x0202, "Joytech Advanced Controller", 3 },
-    { 0x0f30, 0x8888, "BigBen XBMiniPad Controller", 3 },
-    { 0x102c, 0xff0c, "Joytech Wireless Advanced Controller", 3 },
-    { 0x044f, 0x0f07, "Thrustmaster, Inc. Controller", 3 },
-    { 0x0e8f, 0x3008, "Generic xbox control (dealextreme)", 3 },
-    { 0x0a7b, 0xd000, "Steel Battalion Controller", 0 },
-    { 0x0f0d, 0x0001, "HORI Fight Stick", 2 }
+	{ 0x045e, 0x0202, "Xbox Controller", Gamepad, 3 },
+    { 0x045e, 0x0285, "Xbox Controller S", GamepadS, 3 },
+    { 0x045e, 0x0287, "Xbox Controller S", GamepadS, 3 },
+    { 0x045e, 0x0289, "Xbox Controller S", GamepadS, 3 },
+    { 0x0a7b, 0xd000, "Steel Battalion Controller", SteelBattalionController, 0 },
+    { 0x0f0d, 0x0001, "HORI Fight Stick", ArcadeStick, 2 }
 };
 
 #define NUM_KNOWN_XID_DEVICES ARRAY_SIZE(wellKnownDevices)
@@ -139,6 +117,7 @@ static void get_libusb_devices(void)
     char port[16];
     int i, j, n, hub_ports;
     const char *name;
+    XidDeviceType type;
     LibusbDevice *iter, *iter2;
     bool previously_detected;
 
@@ -185,6 +164,7 @@ static void get_libusb_devices(void)
             if (wellKnownDevices[j].vendor_id == vendor_id && 
                 wellKnownDevices[j].product_id == product_id) {
                 name = wellKnownDevices[j].name;
+                type = wellKnownDevices[j].type;
                 hub_ports = wellKnownDevices[j].hub_ports;
                 break;
             }
@@ -201,6 +181,7 @@ static void get_libusb_devices(void)
         device->host_bus = bus;
         device->host_port = g_strdup(port);
         device->name = name;
+        device->type = type;
         device->bound = -1;
         device->detected = true;
         device->internal_hub_ports = hub_ports;
