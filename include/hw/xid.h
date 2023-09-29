@@ -1,5 +1,5 @@
-#ifndef __XID_H__
-#define __XID_H__
+#ifndef __HW_XID_H__
+#define __HW_XID_H__
 
 //
 // xemu User Interface

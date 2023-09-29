@@ -89,7 +89,7 @@ ControllerState *bound_controllers[4] = { NULL, NULL, NULL, NULL };
 LibusbDevice *bound_libusb_devices[4] = { NULL, NULL, NULL, NULL };
 
 #define NUM_DRIVERS 5
-const char *all_drivers[NUM_DRIVERS] = { DRIVER_DUKE, DRIVER_S, DRIVER_SB, DRIVER_FIGHT_STICK, DRIVER_USB_PASSTHROUGH };
+const char *all_drivers[NUM_DRIVERS] = { DRIVER_DUKE, DRIVER_S, DRIVER_STEEL_BATTALION, DRIVER_ARCADE_STICK, DRIVER_USB_PASSTHROUGH };
 
 const char *bound_drivers[4] = { DRIVER_DUKE, DRIVER_DUKE, DRIVER_DUKE, DRIVER_DUKE };
 int test_mode;

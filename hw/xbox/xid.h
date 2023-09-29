@@ -1,5 +1,5 @@
-#ifndef __XID_H__
-#define __XID_H__
+#ifndef __HW_XBOX_XID_H__
+#define __HW_XBOX_XID_H__
 
 /*
  * QEMU USB XID Devices
@@ -31,7 +31,7 @@
 #include "ui/console.h"
 #include "hw/usb.h"
 #include "hw/usb/desc.h"
-#include "ui/xemu-input.h"
+#include "hw/xid.h"
 
 //#define DEBUG_XID
 #ifdef DEBUG_XID
@@ -60,26 +60,6 @@
 #define TYPE_USB_XID_STEEL_BATTALION "usb-steel-battalion"
 #define TYPE_USB_XID_ARCADE_STICK "usb-xbox-arcade-stick"
 
-#define GAMEPAD_A                0
-#define GAMEPAD_B                1
-#define GAMEPAD_X                2
-#define GAMEPAD_Y                3
-#define GAMEPAD_BLACK            4
-#define GAMEPAD_WHITE            5
-#define GAMEPAD_LEFT_TRIGGER     6
-#define GAMEPAD_RIGHT_TRIGGER    7
-
-#define GAMEPAD_DPAD_UP          8
-#define GAMEPAD_DPAD_DOWN        9
-#define GAMEPAD_DPAD_LEFT        10
-#define GAMEPAD_DPAD_RIGHT       11
-#define GAMEPAD_START            12
-#define GAMEPAD_BACK             13
-#define GAMEPAD_LEFT_THUMB       14
-#define GAMEPAD_RIGHT_THUMB      15
-
-#define BUTTON_MASK(button) (1 << ((button) - GAMEPAD_DPAD_UP))
-
 enum {
     STR_MANUFACTURER = 1,
     STR_PRODUCT,
@@ -98,17 +78,6 @@ typedef struct XIDDesc {
     uint8_t  bMaxOutputReportSize;
     uint16_t wAlternateProductIds[4];
 } QEMU_PACKED XIDDesc;
-
-typedef struct XIDGamepadReport {
-    uint8_t  bReportId;
-    uint8_t  bLength;
-    uint16_t wButtons;
-    uint8_t  bAnalogButtons[8];
-    int16_t  sThumbLX;
-    int16_t  sThumbLY;
-    int16_t  sThumbRX;
-    int16_t  sThumbRY;
-} QEMU_PACKED XIDGamepadReport;
 
 typedef struct XIDGamepadOutputReport {
     uint8_t  report_id; //FIXME: is this correct?
