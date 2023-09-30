@@ -63,11 +63,37 @@ typedef struct XIDSteelBattalionReport {
     uint8_t   	ucGearLever;    // gear lever 1~5 for gear 1~5, 7~13 for gear R,N,1~5, 15 for gear R
 } QEMU_PACKED XIDSteelBattalionReport;
 
+// Based on: https://github.com/Ryzee119/ogx360/blob/master/Firmware/src/usbd/usbd_xid.h:195
 typedef struct XIDSteelBattalionOutputReport {
-    uint8_t report_id;
-    uint8_t length;
-    uint8_t led_data[32]; // Not Used
+    uint8_t     report_id;
+    uint8_t     length;
+    uint8_t     CockpitHatch_EmergencyEject;
+    uint8_t     Start_Ignition;
+    uint8_t     MapZoomInOut_OpenClose;
+    uint8_t     SubMonitorModeSelect_ModeSelect;
+    uint8_t     MainMonitorZoomOut_MainMonitorZoomIn;
+    uint8_t     Manipulator_ForecastShootingSystem;
+    uint8_t     Washing_LineColorChange;
+    uint8_t     Chaff_Extinguisher;
+    uint8_t     Override_TankDetach;
+    uint8_t     F1_NightScope;
+    uint8_t     F3_F2;
+    uint8_t     SubWeaponControl_MainWeaponControl;
+    uint8_t     Comm1_MagazineChange;
+    uint8_t     Comm3_Comm2;
+    uint8_t     Comm5_Comm4;
+    uint8_t     GearR_;
+    uint8_t     Gear1_GearN;
+    uint8_t     Gear3_Gear2;
+    uint8_t     Gear5_Gear4;
+    uint8_t     not_used;
 } QEMU_PACKED XIDSteelBattalionOutputReport;
+
+// Macro for accessing the high nibble of a byte, useful for reading the Steel Battalion controller output data
+#define HiNibble(x) ((0xF0 & x) >> 4)
+
+// Macro for accessing the low nibble of a byte, useful for reading the Steel Battalion controller output data
+#define LoNibble(x) (0x0F & x)
 
 #define GAMEPAD_A                0
 #define GAMEPAD_B                1

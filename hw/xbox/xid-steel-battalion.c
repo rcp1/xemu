@@ -244,6 +244,41 @@ static void usb_xid_steel_battalion_handle_control(USBDevice *dev, USBPacket *p,
     }
 }
 
+#if 0
+
+inline void print_steel_battalion_leds(const char *hiNibbleName, const char *loNibbleName, uint8_t byte)
+{
+    if(HiNibble(byte))
+        fprintf(stderr, "%s: %d\n", hiNibbleName, HiNibble(byte));
+    if(LoNibble(byte))
+        fprintf(stderr, "%s: %d\n", loNibbleName, LoNibble(byte));
+}
+
+static void print_xid_steel_battalion_output_data(XIDSteelBattalionOutputReport *state)
+{
+    print_steel_battalion_leds("Cockpit Hatch", "Emergency Eject", state->CockpitHatch_EmergencyEject);
+    print_steel_battalion_leds("Start", "Ignition", state->Start_Ignition);
+    print_steel_battalion_leds("Map Zoom In/Out", "Open/Close", state->MapZoomInOut_OpenClose);
+    print_steel_battalion_leds("Sub Monitor Mode Select", "Mode Select", state->SubMonitorModeSelect_ModeSelect);
+    print_steel_battalion_leds("Main Monitor Zoom Out", "Main Monitor Zoom In", state->MainMonitorZoomOut_MainMonitorZoomIn);
+    print_steel_battalion_leds("Manipulator", "Forecast Shooting System", state->Manipulator_ForecastShootingSystem);
+    print_steel_battalion_leds("Washing", "Line Color Change", state->Washing_LineColorChange);
+    print_steel_battalion_leds("Chaff", "Extinguisher", state->Chaff_Extinguisher);
+    print_steel_battalion_leds("Override", "Tank Detach", state->Override_TankDetach);
+    print_steel_battalion_leds("F1", "Night Scope", state->F1_NightScope);
+    print_steel_battalion_leds("F3", "F2", state->F3_F2);
+    print_steel_battalion_leds("Sub Weapon Control", "Main Weapon Control", state->SubWeaponControl_MainWeaponControl);
+    print_steel_battalion_leds("Comm1", "Magazine Change", state->Comm1_MagazineChange);
+    print_steel_battalion_leds("Comm3", "Comm2", state->Comm3_Comm2);
+    print_steel_battalion_leds("Comm5", "Comm4", state->Comm5_Comm4);
+    print_steel_battalion_leds("Gear R", "Gear X", state->GearR_);
+    print_steel_battalion_leds("Gear1", "GearN", state->Gear1_GearN);
+    print_steel_battalion_leds("Gear3", "Gear2", state->Gear3_Gear2);
+    print_steel_battalion_leds("Gear5", "Gear4", state->Gear5_Gear4);
+}
+
+#endif
+
 static void usb_xid_steel_battalion_handle_data(USBDevice *dev, USBPacket *p)
 {
     USBXIDSteelBattalionState *s = DO_UPCAST(USBXIDSteelBattalionState, dev, dev);
