@@ -74,8 +74,8 @@ typedef struct known_libusb_device {
     unsigned short vendor_id;
     unsigned short product_id;
     const char *name;
-    int hub_ports;
     XidDeviceType type;
+    int hub_ports;
 } known_libusb_device;
 
 const char *unknownDeviceName = "Unknown Device";
