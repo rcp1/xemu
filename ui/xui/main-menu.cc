@@ -187,8 +187,8 @@ void MainMenuInputView::Draw()
         const char *driver_display_names[5] = { DRIVER_DUKE_DISPLAY_NAME, DRIVER_S_DISPLAY_NAME, DRIVER_STEEL_BATTALION_DISPLAY_NAME, DRIVER_ARCADE_STICK_DISPLAY_NAME, DRIVER_USB_PASSTHROUGH_DISPLAY_NAME };
 #else
 #define NUM_AVAILABLE_DRIVERS 4
-        const char *available_drivers[4] = { DRIVER_DUKE, DRIVER_S, DRIVER_SB, DRIVER_FIGHT_STICK };
-        const char *driver_display_names[4] = { DRIVER_DUKE_DISPLAY_NAME, DRIVER_S_DISPLAY_NAME, DRIVER_SB_DISPLAY_NAME, DRIVER_FIGHT_STICK_DISPLAY_NAME };
+        const char *available_drivers[4] = { DRIVER_DUKE, DRIVER_S, DRIVER_STEEL_BATTALION, DRIVER_FIGHT_STICK };
+        const char *driver_display_names[4] = { DRIVER_DUKE_DISPLAY_NAME, DRIVER_S_DISPLAY_NAME, DRIVER_STEEL_BATTALION_DISPLAY_NAME, DRIVER_FIGHT_STICK_DISPLAY_NAME };
 #endif
         bool is_selected = false;
         for(int i = 0; i < NUM_AVAILABLE_DRIVERS; i++) {
