@@ -246,35 +246,51 @@ static void usb_xid_steel_battalion_handle_control(USBDevice *dev, USBPacket *p,
 
 #if 0
 
-inline void print_steel_battalion_leds(const char *hiNibbleName, const char *loNibbleName, uint8_t byte)
+static inline void print_steel_battalion_leds(const char *name, uint8_t byte)
 {
-    if(HiNibble(byte))
-        fprintf(stderr, "%s: %d\n", hiNibbleName, HiNibble(byte));
-    if(LoNibble(byte))
-        fprintf(stderr, "%s: %d\n", loNibbleName, LoNibble(byte));
+    if(byte)
+        fprintf(stderr, "%s: %d\n", name, byte);
 }
 
 static void print_xid_steel_battalion_output_data(XIDSteelBattalionOutputReport *state)
 {
-    print_steel_battalion_leds("Cockpit Hatch", "Emergency Eject", state->CockpitHatch_EmergencyEject);
-    print_steel_battalion_leds("Start", "Ignition", state->Start_Ignition);
-    print_steel_battalion_leds("Map Zoom In/Out", "Open/Close", state->MapZoomInOut_OpenClose);
-    print_steel_battalion_leds("Sub Monitor Mode Select", "Mode Select", state->SubMonitorModeSelect_ModeSelect);
-    print_steel_battalion_leds("Main Monitor Zoom Out", "Main Monitor Zoom In", state->MainMonitorZoomOut_MainMonitorZoomIn);
-    print_steel_battalion_leds("Manipulator", "Forecast Shooting System", state->Manipulator_ForecastShootingSystem);
-    print_steel_battalion_leds("Washing", "Line Color Change", state->Washing_LineColorChange);
-    print_steel_battalion_leds("Chaff", "Extinguisher", state->Chaff_Extinguisher);
-    print_steel_battalion_leds("Override", "Tank Detach", state->Override_TankDetach);
-    print_steel_battalion_leds("F1", "Night Scope", state->F1_NightScope);
-    print_steel_battalion_leds("F3", "F2", state->F3_F2);
-    print_steel_battalion_leds("Sub Weapon Control", "Main Weapon Control", state->SubWeaponControl_MainWeaponControl);
-    print_steel_battalion_leds("Comm1", "Magazine Change", state->Comm1_MagazineChange);
-    print_steel_battalion_leds("Comm3", "Comm2", state->Comm3_Comm2);
-    print_steel_battalion_leds("Comm5", "Comm4", state->Comm5_Comm4);
-    print_steel_battalion_leds("Gear R", "Gear X", state->GearR_);
-    print_steel_battalion_leds("Gear1", "GearN", state->Gear1_GearN);
-    print_steel_battalion_leds("Gear3", "Gear2", state->Gear3_Gear2);
-    print_steel_battalion_leds("Gear5", "Gear4", state->Gear5_Gear4);
+    print_steel_battalion_leds("Emergency Eject", state->EmergencyEject);
+    print_steel_battalion_leds("Cockpit Hatch", state->CockpitHatch);
+    print_steel_battalion_leds("Ignition", state->Ignition);
+    print_steel_battalion_leds("Start", state->Start);
+    print_steel_battalion_leds("Open/Close", state->OpenClose);
+    print_steel_battalion_leds("Map Zoom In/Out", state->MapZoomInOut);
+    print_steel_battalion_leds("Mode Select", state->ModeSelect);
+    print_steel_battalion_leds("Sub Monitor Mode Select", state->SubMonitorModeSelect);
+    print_steel_battalion_leds("Main Monitor Zoom In", state->MainMonitorZoomIn);
+    print_steel_battalion_leds("Main Monitor Zoom Out", state->MainMonitorZoomOut);
+    print_steel_battalion_leds("Forecast Shooting System", state->ForecastShootingSystem);
+    print_steel_battalion_leds("Manipulator", state->Manipulator);
+    print_steel_battalion_leds("Line Color Change", state->LineColorChange);
+    print_steel_battalion_leds("Washing", state->Washing);
+    print_steel_battalion_leds("Extinguisher", state->Extinguisher);
+    print_steel_battalion_leds("Chaff", state->Chaff);
+    print_steel_battalion_leds("Tank Detach", state->TankDetach);
+    print_steel_battalion_leds("Override", state->Override);
+    print_steel_battalion_leds("Night Scope", state->NightScope);
+    print_steel_battalion_leds("F1", state->F1);
+    print_steel_battalion_leds("F2", state->F2);
+    print_steel_battalion_leds("F3", state->F3);
+    print_steel_battalion_leds("Main Weapon Control", state->MainWeaponControl);
+    print_steel_battalion_leds("Sub Weapon Control", state->SubWeaponControl);
+    print_steel_battalion_leds("Magazine Change", state->MagazineChange);
+    print_steel_battalion_leds("Comm1", state->Comm1);
+    print_steel_battalion_leds("Comm2", state->Comm2);
+    print_steel_battalion_leds("Comm3", state->Comm3);
+    print_steel_battalion_leds("Comm4", state->Comm4);
+    print_steel_battalion_leds("Comm5", state->Comm5);
+    print_steel_battalion_leds("GearR", state->GearR);
+    print_steel_battalion_leds("GearN", state->GearN);
+    print_steel_battalion_leds("Gear1", state->Gear1);
+    print_steel_battalion_leds("Gear2", state->Gear2);
+    print_steel_battalion_leds("Gear3", state->Gear3);
+    print_steel_battalion_leds("Gear4", state->Gear4);
+    print_steel_battalion_leds("Gear5", state->Gear5);
 }
 
 #endif
@@ -299,6 +315,7 @@ static void usb_xid_steel_battalion_handle_data(USBDevice *dev, USBPacket *p)
             usb_packet_copy(p, &s->out_state, s->out_state.length);
             // TODO: Update output for Steel Battalion Controller here, if we want to. 
             // It's LED data, so, maybe use it for RGB integration with RGB Keyboards?
+            // print_xid_steel_battalion_output_data(&s->out_state);
         } else {
             assert(false);
         }

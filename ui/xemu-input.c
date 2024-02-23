@@ -33,6 +33,8 @@
 #include "xemu-notifications.h"
 #include "xemu-settings.h"
 
+#include "sysemu/blockdev.h"
+
 // #define DEBUG_INPUT
 
 #ifdef DEBUG_INPUT
@@ -108,10 +110,34 @@ static const char **port_index_to_driver_settings_key_map[] = {
     &g_config.input.bindings.port4_driver
 };
 
+static int *peripheral_types_settings_map[4][2] = {
+    { &g_config.input.peripherals.port1.peripheral_type_0,
+      &g_config.input.peripherals.port1.peripheral_type_1 },
+    { &g_config.input.peripherals.port2.peripheral_type_0,
+      &g_config.input.peripherals.port2.peripheral_type_1 },
+    { &g_config.input.peripherals.port3.peripheral_type_0,
+      &g_config.input.peripherals.port3.peripheral_type_1 },
+    { &g_config.input.peripherals.port4.peripheral_type_0,
+      &g_config.input.peripherals.port4.peripheral_type_1 }
+};
+
+static const char **peripheral_params_settings_map[4][2] = {
+    { &g_config.input.peripherals.port1.peripheral_param_0,
+      &g_config.input.peripherals.port1.peripheral_param_1 },
+    { &g_config.input.peripherals.port2.peripheral_param_0,
+      &g_config.input.peripherals.port2.peripheral_param_1 },
+    { &g_config.input.peripherals.port3.peripheral_param_0,
+      &g_config.input.peripherals.port3.peripheral_param_1 },
+    { &g_config.input.peripherals.port4.peripheral_param_0,
+      &g_config.input.peripherals.port4.peripheral_param_1 }
+};
+
 static int sdl_kbd_scancode_map[25];
 static int sdl_sbc_kbd_scancode_map[56];
 
-const char *get_bound_driver(int port) {
+static const int port_map[4] = { 3, 4, 1, 2 };
+
+static const char *get_bound_driver(int port) {
     assert(port >= 0 && port <= 3);
     const char *driver = NULL;
 
@@ -176,6 +202,10 @@ void xemu_input_init(void)
     new_con->type = INPUT_DEVICE_SDL_KEYBOARD;
     new_con->name = "Keyboard";
     new_con->bound = -1;
+    new_con->peripheral_types[0] = PERIPHERAL_NONE;
+    new_con->peripheral_types[1] = PERIPHERAL_NONE;
+    new_con->peripherals[0] = NULL;
+    new_con->peripherals[1] = NULL;
 
     sdl_kbd_scancode_map[0] = g_config.input.keyboard_controller_scancode_map.a;
     sdl_kbd_scancode_map[1] = g_config.input.keyboard_controller_scancode_map.b;
@@ -288,6 +318,7 @@ void xemu_input_init(void)
         char buf[128];
         snprintf(buf, sizeof(buf), "Connected '%s' to port %d", new_con->name, port+1);
         xemu_queue_notification(buf);
+        xemu_input_rebind_xmu(port);
     }
 
     QTAILQ_INSERT_TAIL(&available_controllers, new_con, entry);
@@ -326,6 +357,24 @@ int xemu_input_get_libusb_device_default_bind_port(LibusbDevice *device, int sta
     return -1;
 }
 
+void xemu_save_peripheral_settings(int player_index, int peripheral_index,
+                                   int peripheral_type,
+                                   const char *peripheral_parameter)
+{
+    int *peripheral_type_ptr =
+        peripheral_types_settings_map[player_index][peripheral_index];
+    const char **peripheral_param_ptr =
+        peripheral_params_settings_map[player_index][peripheral_index];
+
+    assert(peripheral_type_ptr);
+    assert(peripheral_param_ptr);
+
+    *peripheral_type_ptr = peripheral_type;
+    xemu_settings_set_string(
+        peripheral_param_ptr,
+        peripheral_parameter == NULL ? "" : peripheral_parameter);
+}
+
 void xemu_input_process_sdl_events(const SDL_Event *event)
 {
     if (event->type == SDL_CONTROLLERDEVICEADDED) {
@@ -350,6 +399,10 @@ void xemu_input_process_sdl_events(const SDL_Event *event)
         new_con->sdl_joystick_id      = SDL_JoystickInstanceID(new_con->sdl_joystick);
         new_con->sdl_joystick_guid    = SDL_JoystickGetGUID(new_con->sdl_joystick);
         new_con->bound                = -1;
+        new_con->peripheral_types[0] = PERIPHERAL_NONE;
+        new_con->peripheral_types[1] = PERIPHERAL_NONE;
+        new_con->peripherals[0] = NULL;
+        new_con->peripherals[1] = NULL;
 
         char guid_buf[35] = { 0 };
         SDL_JoystickGetGUIDString(new_con->sdl_joystick_guid, guid_buf, sizeof(guid_buf));
@@ -404,6 +457,7 @@ void xemu_input_process_sdl_events(const SDL_Event *event)
             char buf[128];
             snprintf(buf, sizeof(buf), "Connected '%s' to port %d", new_con->name, port+1);
             xemu_queue_notification(buf);
+            xemu_input_rebind_xmu(port);
         }
     } else if (event->type == SDL_CONTROLLERDEVICEREMOVED) {
         DPRINTF("Controller Removed: %d\n", event->cdevice.which);
@@ -435,6 +489,11 @@ void xemu_input_process_sdl_events(const SDL_Event *event)
                 // Deallocate
                 if (iter->sdl_gamecontroller) {
                     SDL_GameControllerClose(iter->sdl_gamecontroller);
+                }
+
+                for (int i = 0; i < 2; i++) {
+                    if (iter->peripherals[i])
+                        g_free(iter->peripherals[i]);
                 }
                 free(iter);
 
@@ -639,12 +698,9 @@ void xemu_input_update_sdl_controller_state(ControllerState *state)
     }
 
     const SDL_GameControllerAxis sdl_axis_map[6] = {
-        SDL_CONTROLLER_AXIS_TRIGGERLEFT,
-        SDL_CONTROLLER_AXIS_TRIGGERRIGHT,
-        SDL_CONTROLLER_AXIS_LEFTX,
-        SDL_CONTROLLER_AXIS_LEFTY,
-        SDL_CONTROLLER_AXIS_RIGHTX,
-        SDL_CONTROLLER_AXIS_RIGHTY,
+        SDL_CONTROLLER_AXIS_TRIGGERLEFT, SDL_CONTROLLER_AXIS_TRIGGERRIGHT,
+        SDL_CONTROLLER_AXIS_LEFTX,       SDL_CONTROLLER_AXIS_LEFTY,
+        SDL_CONTROLLER_AXIS_RIGHTX,      SDL_CONTROLLER_AXIS_RIGHTY,
     };
 
     for (int i = 0; i < 6; i++) {
@@ -779,7 +835,7 @@ static DeviceState *xemu_bind_usb_hub(int num_ports, const char *port)
     return usbhub_dev;
 }
 
-static void xemu_input_bind_driver(int index, const char *port, const char *driver)
+static DeviceState* xemu_input_bind_driver(int index, const char *port, const char *driver)
 {
     // Create XID controller. This is connected to Port 1 of the controller's internal USB Hub
     QDict *qdict = qdict_new();
@@ -803,7 +859,7 @@ static void xemu_input_bind_driver(int index, const char *port, const char *driv
     assert(dev);
 
     qobject_unref(qdict);
-    object_unref(OBJECT(dev));
+    return dev;
 }
 
 static DeviceState *xemu_bind_usb_host(int hostbus, const char *hostport, const char *port)
@@ -842,6 +898,22 @@ void xemu_input_bind(int index, ControllerState *state, int save)
     if (bound_controllers[index]) {
         assert(bound_controllers[index]->device != NULL);
         Error *err = NULL;
+
+        // Unbind any XMUs
+        for (int i = 0; i < 2; i++) {
+            if (bound_controllers[index]->peripherals[i]) {
+                // If this was an XMU, unbind the XMU
+                if (bound_controllers[index]->peripheral_types[i] ==
+                    PERIPHERAL_XMU)
+                    xemu_input_unbind_xmu(index, i);
+
+                // Free up the XmuState and set the peripheral type to none
+                g_free(bound_controllers[index]->peripherals[i]);
+                bound_controllers[index]->peripherals[i] = NULL;
+                bound_controllers[index]->peripheral_types[i] = PERIPHERAL_NONE;
+            }
+        }
+
         qdev_unplug((DeviceState *)bound_controllers[index]->device, &err);
         assert(err == NULL);
 
@@ -874,21 +946,30 @@ void xemu_input_bind(int index, ControllerState *state, int save)
             bound_controllers[index] = state;
             bound_controllers[index]->bound = index;
 
-            const int port_map[4] = {3, 4, 1, 2};
             char *tmp;
 
-            // Create controller's internal USB hub.
-            tmp = g_strdup_printf("1.%d", port_map[index]);
-            DeviceState *usbhub_dev = xemu_bind_usb_hub(3, tmp);
-            g_free(tmp);
+            bool hasInternalHub = strcmp(bound_drivers[index], DRIVER_STEEL_BATTALION) != 0;
+            char *port;
+            DeviceState *dev;
 
-            char *port = g_strdup_printf("1.%d.1", port_map[index]);
-            xemu_input_bind_driver(index, port, bound_drivers[index]);
+            if(hasInternalHub) {
+                // Create controller's internal USB hub.
+                tmp = g_strdup_printf("1.%d", port_map[index]);
+                dev = xemu_bind_usb_hub(3, tmp);
+                g_free(tmp);
+                port = g_strdup_printf("1.%d.1", port_map[index]);
+                DeviceState *tmp_dev = xemu_input_bind_driver(index, port, bound_drivers[index]);
+                object_unref(OBJECT(tmp_dev));
+            } else {
+                port = g_strdup_printf("1.%d", port_map[index]);
+                dev = xemu_input_bind_driver(index, port, bound_drivers[index]);
+            }
+            g_free(port);
 
             // Unref for eventual cleanup
-            object_unref(OBJECT(usbhub_dev));
+            object_unref(OBJECT(dev));
 
-            state->device = usbhub_dev;
+            state->device = dev;
         }
     }
 }
@@ -927,8 +1008,6 @@ void xemu_input_bind_passthrough(int index, LibusbDevice *state, int save)
             bound_libusb_devices[index] = state;
             bound_libusb_devices[index]->bound = index;
 
-            const int port_map[4] = {3, 4, 1, 2};
-
             if(state->internal_hub_ports > 0) {
                 // Create controller's internal USB hub.
                 char *port = g_strdup_printf("1.%d", port_map[index]);
@@ -966,6 +1045,186 @@ void xemu_input_bind_passthrough(int index, LibusbDevice *state, int save)
                 object_unref(OBJECT(controller_dev));
 
                 state->device = controller_dev;
+            }
+        }
+    }
+}
+
+bool xemu_input_bind_xmu(int player_index, int expansion_slot_index,
+                         const char *filename, bool is_rebind)
+{
+    assert(player_index >= 0 && player_index < 4);
+    assert(expansion_slot_index >= 0 && expansion_slot_index < 2);
+
+    bool hasInternalHub = strcmp(bound_drivers[player_index], DRIVER_STEEL_BATTALION) != 0;
+    assert(hasInternalHub);
+
+    ControllerState *player = bound_controllers[player_index];
+    enum peripheral_type peripheral_type =
+        player->peripheral_types[expansion_slot_index];
+    if (peripheral_type != PERIPHERAL_XMU)
+        return false;
+
+    XmuState *xmu = (XmuState *)player->peripherals[expansion_slot_index];
+
+    // Unbind existing XMU
+    if (xmu->dev != NULL) {
+        xemu_input_unbind_xmu(player_index, expansion_slot_index);
+    }
+
+    if (filename == NULL)
+        return false;
+
+    // Look for any other XMUs that are using this file, and unbind them
+    for (int player_i = 0; player_i < 4; player_i++) {
+        ControllerState *state = bound_controllers[player_i];
+        if (state != NULL) {
+            for (int peripheral_i = 0; peripheral_i < 2; peripheral_i++) {
+                if (state->peripheral_types[peripheral_i] == PERIPHERAL_XMU) {
+                    XmuState *xmu_i =
+                        (XmuState *)state->peripherals[peripheral_i];
+                    assert(xmu_i);
+
+                    if (xmu_i->filename != NULL &&
+                        strcmp(xmu_i->filename, filename) == 0) {
+                        char *buf =
+                            g_strdup_printf("This XMU is already mounted on "
+                                            "player %d slot %c\r\n",
+                                            player_i + 1, 'A' + peripheral_i);
+                        xemu_queue_notification(buf);
+                        g_free(buf);
+                        return false;
+                    }
+                }
+            }
+        }
+    }
+
+    xmu->filename = g_strdup(filename);
+
+    const int xmu_map[2] = { 2, 3 };
+    char *tmp;
+
+    static int id_counter = 0;
+    tmp = g_strdup_printf("xmu_%d", id_counter++);
+
+    // Add the file as a drive
+    QDict *qdict1 = qdict_new();
+    qdict_put_str(qdict1, "id", tmp);
+    qdict_put_str(qdict1, "format", "raw");
+    qdict_put_str(qdict1, "file", filename);
+
+    QemuOpts *drvopts =
+        qemu_opts_from_qdict(qemu_find_opts("drive"), qdict1, &error_abort);
+
+    DriveInfo *dinfo = drive_new(drvopts, 0, &error_abort);
+    assert(dinfo);
+
+    // Create the usb-storage device
+    QDict *qdict2 = qdict_new();
+
+    // Specify device driver
+    qdict_put_str(qdict2, "driver", "usb-storage");
+
+    // Specify device identifier
+    qdict_put_str(qdict2, "drive", tmp);
+    g_free(tmp);
+
+    // Specify index/port
+    tmp = g_strdup_printf("1.%d.%d", port_map[player_index],
+                          xmu_map[expansion_slot_index]);
+    qdict_put_str(qdict2, "port", tmp);
+    g_free(tmp);
+
+    // Create the device
+    QemuOpts *opts =
+        qemu_opts_from_qdict(qemu_find_opts("device"), qdict2, &error_abort);
+
+    DeviceState *dev = qdev_device_add(opts, &error_abort);
+    assert(dev);
+
+    xmu->dev = (void *)dev;
+
+    // Unref for eventual cleanup
+    qobject_unref(qdict1);
+    qobject_unref(qdict2);
+
+    if (!is_rebind) {
+        xemu_save_peripheral_settings(player_index, expansion_slot_index,
+                                      peripheral_type, xmu->filename);
+    }
+
+    return true;
+}
+
+void xemu_input_unbind_xmu(int player_index, int expansion_slot_index)
+{
+    assert(player_index >= 0 && player_index < 4);
+    assert(expansion_slot_index >= 0 && expansion_slot_index < 2);
+
+    ControllerState *state = bound_controllers[player_index];
+    if (state->peripheral_types[expansion_slot_index] != PERIPHERAL_XMU)
+        return;
+
+    XmuState *xmu = (XmuState *)state->peripherals[expansion_slot_index];
+    if (xmu != NULL) {
+        if (xmu->dev != NULL) {
+            qdev_unplug((DeviceState *)xmu->dev, &error_abort);
+            object_unref(OBJECT(xmu->dev));
+            xmu->dev = NULL;
+        }
+
+        g_free((void *)xmu->filename);
+        xmu->filename = NULL;
+    }
+}
+
+void xemu_input_rebind_xmu(int port)
+{
+    bool hasInternalHub = strcmp(bound_drivers[port], DRIVER_STEEL_BATTALION) != 0;
+    if(!hasInternalHub)
+        return;
+
+    // Try to bind peripherals back to controller
+    for (int i = 0; i < 2; i++) {
+        enum peripheral_type peripheral_type =
+            (enum peripheral_type)(*peripheral_types_settings_map[port][i]);
+
+        // If peripheralType is out of range, change the settings for this
+        // controller and peripheral port to default
+        if (peripheral_type < PERIPHERAL_NONE ||
+            peripheral_type >= PERIPHERAL_TYPE_COUNT) {
+            xemu_save_peripheral_settings(port, i, PERIPHERAL_NONE, NULL);
+            peripheral_type = PERIPHERAL_NONE;
+        }
+
+        const char *param = *peripheral_params_settings_map[port][i];
+
+        if (peripheral_type == PERIPHERAL_XMU) {
+            if (param != NULL && strlen(param) > 0) {
+                // This is an XMU and needs to be bound to this controller
+                if (qemu_access(param, R_OK | W_OK) == 0) {
+                    bound_controllers[port]->peripheral_types[i] =
+                        peripheral_type;
+                    bound_controllers[port]->peripherals[i] =
+                        g_malloc(sizeof(XmuState));
+                    memset(bound_controllers[port]->peripherals[i], 0,
+                           sizeof(XmuState));
+                    bool did_bind = xemu_input_bind_xmu(port, i, param, true);
+                    if (did_bind) {
+                        char *buf =
+                            g_strdup_printf("Connected XMU %s to port %d%c",
+                                            param, port + 1, 'A' + i);
+                        xemu_queue_notification(buf);
+                        g_free(buf);
+                    }
+                } else {
+                    char *buf =
+                        g_strdup_printf("Unable to bind XMU at %s to port %d%c",
+                                        param, port + 1, 'A' + i);
+                    xemu_queue_error_message(buf);
+                    g_free(buf);
+                }
             }
         }
     }
@@ -1021,10 +1280,6 @@ void xemu_input_update_gamepad(ControllerState *state, XIDGamepadReport *in_stat
     state->gp.axis[CONTROLLER_AXIS_LSTICK_Y] = in_state->sThumbLY;
     state->gp.axis[CONTROLLER_AXIS_RSTICK_X] = in_state->sThumbRX;
     state->gp.axis[CONTROLLER_AXIS_RSTICK_Y] = in_state->sThumbRY;
-
-    memcpy(&state->buttons, &state->gp.buttons, sizeof(state->buttons));
-    memcpy(state->analog_buttons, state->gp.analog_buttons, sizeof(state->gp.analog_buttons));
-    memcpy(state->axis, state->gp.axis, sizeof(state->gp.axis));
 }
 
 void xemu_input_update_steel_battalion(ControllerState *state, XIDSteelBattalionReport *in_state)
