@@ -19,15 +19,15 @@
 
 
 #include "qemu/osdep.h"
-#include "hw/usb.h"
 #include "hw/qdev-core.h"
 #include "hw/qdev-properties.h"
-#include "qapi/error.h"
+#include "hw/usb.h"
 #include "monitor/qdev.h"
+#include "qapi/error.h"
 #include "qapi/qmp/qdict.h"
+#include "qemu/config-file.h"
 #include "qemu/option.h"
 #include "qemu/timer.h"
-#include "qemu/config-file.h"
 
 #include "xemu-input.h"
 #include "xemu-notifications.h"
@@ -91,9 +91,13 @@ ControllerState *bound_controllers[4] = { NULL, NULL, NULL, NULL };
 LibusbDevice *bound_libusb_devices[4] = { NULL, NULL, NULL, NULL };
 
 #define NUM_DRIVERS 5
-const char *all_drivers[NUM_DRIVERS] = { DRIVER_DUKE, DRIVER_S, DRIVER_STEEL_BATTALION, DRIVER_ARCADE_STICK, DRIVER_USB_PASSTHROUGH };
+const char *all_drivers[NUM_DRIVERS] = { DRIVER_DUKE, DRIVER_S,
+                                         DRIVER_STEEL_BATTALION,
+                                         DRIVER_ARCADE_STICK,
+                                         DRIVER_USB_PASSTHROUGH };
 
-const char *bound_drivers[4] = { DRIVER_DUKE, DRIVER_DUKE, DRIVER_DUKE, DRIVER_DUKE };
+const char *bound_drivers[4] = { DRIVER_DUKE, DRIVER_DUKE, DRIVER_DUKE,
+                                 DRIVER_DUKE };
 int test_mode;
 
 static const char **port_index_to_settings_key_map[] = {
@@ -106,8 +110,7 @@ static const char **port_index_to_settings_key_map[] = {
 static const char **port_index_to_driver_settings_key_map[] = {
     &g_config.input.bindings.port1_driver,
     &g_config.input.bindings.port2_driver,
-    &g_config.input.bindings.port3_driver,
-    &g_config.input.bindings.port4_driver
+    &g_config.input.bindings.port3_driver, &g_config.input.bindings.port4_driver
 };
 
 static int *peripheral_types_settings_map[4][2] = {
@@ -137,44 +140,47 @@ static int sdl_sbc_kbd_scancode_map[56];
 
 static const int port_map[4] = { 3, 4, 1, 2 };
 
-static const char *get_bound_driver(int port) {
+static const char *get_bound_driver(int port)
+{
     assert(port >= 0 && port <= 3);
     const char *driver = NULL;
 
     driver = *port_index_to_driver_settings_key_map[port];
 
-    if(driver == NULL)
+    if (driver == NULL)
         return DRIVER_DUKE; // Shouldn't be possible
-    if(strlen(driver) == 0)
+    if (strlen(driver) == 0)
         return DRIVER_DUKE;
 
-    for(int i = 0; i < NUM_DRIVERS; i++) {
-        if(strcmp(driver, all_drivers[i]) == 0)
+    for (int i = 0; i < NUM_DRIVERS; i++) {
+        if (strcmp(driver, all_drivers[i]) == 0)
             return all_drivers[i];
     }
-    
+
     // Shouldn't be possible
     return DRIVER_DUKE;
 }
 
-static void libusb_device_connected(LibusbDevice *device) {
-
+static void libusb_device_connected(LibusbDevice *device)
+{
     int p = xemu_input_get_libusb_device_default_bind_port(device, 0);
 
     assert(p >= -1 && p < 4);
 
-    if(p >= 0 && !bound_libusb_devices[p] && !bound_controllers[p]) {
+    if (p >= 0 && !bound_libusb_devices[p] && !bound_controllers[p]) {
         bound_drivers[p] = DRIVER_USB_PASSTHROUGH;
         xemu_input_bind_passthrough(p, device, 1);
 
         char buf[128];
-        snprintf(buf, sizeof(buf), "Connected '%s' to port %d", device->name, p+1);
+        snprintf(buf, sizeof(buf), "Connected '%s' to port %d", device->name,
+                 p + 1);
         xemu_queue_notification(buf);
     }
 }
 
-static void libusb_device_disconnected(LibusbDevice *device) {
-    if(device->bound >= 0) {
+static void libusb_device_disconnected(LibusbDevice *device)
+{
+    if (device->bound >= 0) {
         char buf[128];
         snprintf(buf, 128, "Port %d Disconnected", device->bound + 1);
         xemu_queue_notification(buf);
@@ -194,7 +200,8 @@ void xemu_input_init(void)
         exit(1);
     }
 
-    xemu_init_libusb_passthrough(libusb_device_connected, libusb_device_disconnected);
+    xemu_init_libusb_passthrough(libusb_device_connected,
+                                 libusb_device_disconnected);
 
     // Create the keyboard input (always first)
     ControllerState *new_con = malloc(sizeof(ControllerState));
@@ -241,67 +248,125 @@ void xemu_input_init(void)
         }
     }
 
-    sdl_sbc_kbd_scancode_map[0] = g_config.input.keyboard_sbc_scancode_map.main_weapon;
-    sdl_sbc_kbd_scancode_map[1] = g_config.input.keyboard_sbc_scancode_map.sub_weapon;
-    sdl_sbc_kbd_scancode_map[2] = g_config.input.keyboard_sbc_scancode_map.lock_on;
-    sdl_sbc_kbd_scancode_map[3] = g_config.input.keyboard_sbc_scancode_map.eject;
-    sdl_sbc_kbd_scancode_map[4] = g_config.input.keyboard_sbc_scancode_map.cockpit_hatch;
-    sdl_sbc_kbd_scancode_map[5] = g_config.input.keyboard_sbc_scancode_map.ignition;
-    sdl_sbc_kbd_scancode_map[6] = g_config.input.keyboard_sbc_scancode_map.start;
-    sdl_sbc_kbd_scancode_map[7] = g_config.input.keyboard_sbc_scancode_map.open_close;
-    sdl_sbc_kbd_scancode_map[8] = g_config.input.keyboard_sbc_scancode_map.map_zoom_in_out;
-    sdl_sbc_kbd_scancode_map[9] = g_config.input.keyboard_sbc_scancode_map.mode_select;
-    sdl_sbc_kbd_scancode_map[10] = g_config.input.keyboard_sbc_scancode_map.sub_monitor_mode_select;
-    sdl_sbc_kbd_scancode_map[11] = g_config.input.keyboard_sbc_scancode_map.zoom_in;
-    sdl_sbc_kbd_scancode_map[12] = g_config.input.keyboard_sbc_scancode_map.zoom_out;
+    sdl_sbc_kbd_scancode_map[0] =
+        g_config.input.keyboard_sbc_scancode_map.main_weapon;
+    sdl_sbc_kbd_scancode_map[1] =
+        g_config.input.keyboard_sbc_scancode_map.sub_weapon;
+    sdl_sbc_kbd_scancode_map[2] =
+        g_config.input.keyboard_sbc_scancode_map.lock_on;
+    sdl_sbc_kbd_scancode_map[3] =
+        g_config.input.keyboard_sbc_scancode_map.eject;
+    sdl_sbc_kbd_scancode_map[4] =
+        g_config.input.keyboard_sbc_scancode_map.cockpit_hatch;
+    sdl_sbc_kbd_scancode_map[5] =
+        g_config.input.keyboard_sbc_scancode_map.ignition;
+    sdl_sbc_kbd_scancode_map[6] =
+        g_config.input.keyboard_sbc_scancode_map.start;
+    sdl_sbc_kbd_scancode_map[7] =
+        g_config.input.keyboard_sbc_scancode_map.open_close;
+    sdl_sbc_kbd_scancode_map[8] =
+        g_config.input.keyboard_sbc_scancode_map.map_zoom_in_out;
+    sdl_sbc_kbd_scancode_map[9] =
+        g_config.input.keyboard_sbc_scancode_map.mode_select;
+    sdl_sbc_kbd_scancode_map[10] =
+        g_config.input.keyboard_sbc_scancode_map.sub_monitor_mode_select;
+    sdl_sbc_kbd_scancode_map[11] =
+        g_config.input.keyboard_sbc_scancode_map.zoom_in;
+    sdl_sbc_kbd_scancode_map[12] =
+        g_config.input.keyboard_sbc_scancode_map.zoom_out;
     sdl_sbc_kbd_scancode_map[13] = g_config.input.keyboard_sbc_scancode_map.fss;
-    sdl_sbc_kbd_scancode_map[14] = g_config.input.keyboard_sbc_scancode_map.manipulator;
-    sdl_sbc_kbd_scancode_map[15] = g_config.input.keyboard_sbc_scancode_map.line_color_change;
-    sdl_sbc_kbd_scancode_map[16] = g_config.input.keyboard_sbc_scancode_map.washing;
-    sdl_sbc_kbd_scancode_map[17] = g_config.input.keyboard_sbc_scancode_map.extinguisher;
-    sdl_sbc_kbd_scancode_map[18] = g_config.input.keyboard_sbc_scancode_map.chaff;
-    sdl_sbc_kbd_scancode_map[19] = g_config.input.keyboard_sbc_scancode_map.tank_detach;
-    sdl_sbc_kbd_scancode_map[20] = g_config.input.keyboard_sbc_scancode_map.override;
-    sdl_sbc_kbd_scancode_map[21] = g_config.input.keyboard_sbc_scancode_map.night_scope;
-    sdl_sbc_kbd_scancode_map[22] = g_config.input.keyboard_sbc_scancode_map.func1;
-    sdl_sbc_kbd_scancode_map[23] = g_config.input.keyboard_sbc_scancode_map.func2;
-    sdl_sbc_kbd_scancode_map[24] = g_config.input.keyboard_sbc_scancode_map.func3;
-    sdl_sbc_kbd_scancode_map[25] = g_config.input.keyboard_sbc_scancode_map.main_weapon_control;
-    sdl_sbc_kbd_scancode_map[26] = g_config.input.keyboard_sbc_scancode_map.sub_weapon_control;
-    sdl_sbc_kbd_scancode_map[27] = g_config.input.keyboard_sbc_scancode_map.magazine_change;
-    sdl_sbc_kbd_scancode_map[28] = g_config.input.keyboard_sbc_scancode_map.com1;
-    sdl_sbc_kbd_scancode_map[29] = g_config.input.keyboard_sbc_scancode_map.com2;
-    sdl_sbc_kbd_scancode_map[30] = g_config.input.keyboard_sbc_scancode_map.com3;
-    sdl_sbc_kbd_scancode_map[31] = g_config.input.keyboard_sbc_scancode_map.com4;
-    sdl_sbc_kbd_scancode_map[32] = g_config.input.keyboard_sbc_scancode_map.com5;         
-    sdl_sbc_kbd_scancode_map[33] = g_config.input.keyboard_sbc_scancode_map.sight_change;
-    sdl_sbc_kbd_scancode_map[34] = g_config.input.keyboard_sbc_scancode_map.filt_control_system;
-    sdl_sbc_kbd_scancode_map[35] = g_config.input.keyboard_sbc_scancode_map.oxygen_supply_system;
-    sdl_sbc_kbd_scancode_map[36] = g_config.input.keyboard_sbc_scancode_map.fuel_flow_rate;
-    sdl_sbc_kbd_scancode_map[37] = g_config.input.keyboard_sbc_scancode_map.buffer_material;
-    sdl_sbc_kbd_scancode_map[38] = g_config.input.keyboard_sbc_scancode_map.vt_location_measurement;
-    sdl_sbc_kbd_scancode_map[39] = g_config.input.keyboard_sbc_scancode_map.gear_up;
-    sdl_sbc_kbd_scancode_map[40] = g_config.input.keyboard_sbc_scancode_map.gear_down;
-    sdl_sbc_kbd_scancode_map[41] = g_config.input.keyboard_sbc_scancode_map.tuner_left;
-    sdl_sbc_kbd_scancode_map[42] = g_config.input.keyboard_sbc_scancode_map.tuner_right;
-    sdl_sbc_kbd_scancode_map[43] = g_config.input.keyboard_sbc_scancode_map.aiming_up;
-    sdl_sbc_kbd_scancode_map[44] = g_config.input.keyboard_sbc_scancode_map.aiming_down;
-    sdl_sbc_kbd_scancode_map[45] = g_config.input.keyboard_sbc_scancode_map.aiming_left;
-    sdl_sbc_kbd_scancode_map[46] = g_config.input.keyboard_sbc_scancode_map.aiming_right;
-    sdl_sbc_kbd_scancode_map[47] = g_config.input.keyboard_sbc_scancode_map.sight_change_up;
-    sdl_sbc_kbd_scancode_map[48] = g_config.input.keyboard_sbc_scancode_map.sight_change_down;
-    sdl_sbc_kbd_scancode_map[49] = g_config.input.keyboard_sbc_scancode_map.sight_change_left;
-    sdl_sbc_kbd_scancode_map[50] = g_config.input.keyboard_sbc_scancode_map.sight_change_right;
-    sdl_sbc_kbd_scancode_map[51] = g_config.input.keyboard_sbc_scancode_map.rotation_left;
-    sdl_sbc_kbd_scancode_map[52] = g_config.input.keyboard_sbc_scancode_map.rotation_right;
-    sdl_sbc_kbd_scancode_map[53] = g_config.input.keyboard_sbc_scancode_map.left_pedal;
-    sdl_sbc_kbd_scancode_map[54] = g_config.input.keyboard_sbc_scancode_map.right_pedal;
-    sdl_sbc_kbd_scancode_map[55] = g_config.input.keyboard_sbc_scancode_map.middle_pedal;
+    sdl_sbc_kbd_scancode_map[14] =
+        g_config.input.keyboard_sbc_scancode_map.manipulator;
+    sdl_sbc_kbd_scancode_map[15] =
+        g_config.input.keyboard_sbc_scancode_map.line_color_change;
+    sdl_sbc_kbd_scancode_map[16] =
+        g_config.input.keyboard_sbc_scancode_map.washing;
+    sdl_sbc_kbd_scancode_map[17] =
+        g_config.input.keyboard_sbc_scancode_map.extinguisher;
+    sdl_sbc_kbd_scancode_map[18] =
+        g_config.input.keyboard_sbc_scancode_map.chaff;
+    sdl_sbc_kbd_scancode_map[19] =
+        g_config.input.keyboard_sbc_scancode_map.tank_detach;
+    sdl_sbc_kbd_scancode_map[20] =
+        g_config.input.keyboard_sbc_scancode_map.override;
+    sdl_sbc_kbd_scancode_map[21] =
+        g_config.input.keyboard_sbc_scancode_map.night_scope;
+    sdl_sbc_kbd_scancode_map[22] =
+        g_config.input.keyboard_sbc_scancode_map.func1;
+    sdl_sbc_kbd_scancode_map[23] =
+        g_config.input.keyboard_sbc_scancode_map.func2;
+    sdl_sbc_kbd_scancode_map[24] =
+        g_config.input.keyboard_sbc_scancode_map.func3;
+    sdl_sbc_kbd_scancode_map[25] =
+        g_config.input.keyboard_sbc_scancode_map.main_weapon_control;
+    sdl_sbc_kbd_scancode_map[26] =
+        g_config.input.keyboard_sbc_scancode_map.sub_weapon_control;
+    sdl_sbc_kbd_scancode_map[27] =
+        g_config.input.keyboard_sbc_scancode_map.magazine_change;
+    sdl_sbc_kbd_scancode_map[28] =
+        g_config.input.keyboard_sbc_scancode_map.com1;
+    sdl_sbc_kbd_scancode_map[29] =
+        g_config.input.keyboard_sbc_scancode_map.com2;
+    sdl_sbc_kbd_scancode_map[30] =
+        g_config.input.keyboard_sbc_scancode_map.com3;
+    sdl_sbc_kbd_scancode_map[31] =
+        g_config.input.keyboard_sbc_scancode_map.com4;
+    sdl_sbc_kbd_scancode_map[32] =
+        g_config.input.keyboard_sbc_scancode_map.com5;
+    sdl_sbc_kbd_scancode_map[33] =
+        g_config.input.keyboard_sbc_scancode_map.sight_change;
+    sdl_sbc_kbd_scancode_map[34] =
+        g_config.input.keyboard_sbc_scancode_map.filt_control_system;
+    sdl_sbc_kbd_scancode_map[35] =
+        g_config.input.keyboard_sbc_scancode_map.oxygen_supply_system;
+    sdl_sbc_kbd_scancode_map[36] =
+        g_config.input.keyboard_sbc_scancode_map.fuel_flow_rate;
+    sdl_sbc_kbd_scancode_map[37] =
+        g_config.input.keyboard_sbc_scancode_map.buffer_material;
+    sdl_sbc_kbd_scancode_map[38] =
+        g_config.input.keyboard_sbc_scancode_map.vt_location_measurement;
+    sdl_sbc_kbd_scancode_map[39] =
+        g_config.input.keyboard_sbc_scancode_map.gear_up;
+    sdl_sbc_kbd_scancode_map[40] =
+        g_config.input.keyboard_sbc_scancode_map.gear_down;
+    sdl_sbc_kbd_scancode_map[41] =
+        g_config.input.keyboard_sbc_scancode_map.tuner_left;
+    sdl_sbc_kbd_scancode_map[42] =
+        g_config.input.keyboard_sbc_scancode_map.tuner_right;
+    sdl_sbc_kbd_scancode_map[43] =
+        g_config.input.keyboard_sbc_scancode_map.aiming_up;
+    sdl_sbc_kbd_scancode_map[44] =
+        g_config.input.keyboard_sbc_scancode_map.aiming_down;
+    sdl_sbc_kbd_scancode_map[45] =
+        g_config.input.keyboard_sbc_scancode_map.aiming_left;
+    sdl_sbc_kbd_scancode_map[46] =
+        g_config.input.keyboard_sbc_scancode_map.aiming_right;
+    sdl_sbc_kbd_scancode_map[47] =
+        g_config.input.keyboard_sbc_scancode_map.sight_change_up;
+    sdl_sbc_kbd_scancode_map[48] =
+        g_config.input.keyboard_sbc_scancode_map.sight_change_down;
+    sdl_sbc_kbd_scancode_map[49] =
+        g_config.input.keyboard_sbc_scancode_map.sight_change_left;
+    sdl_sbc_kbd_scancode_map[50] =
+        g_config.input.keyboard_sbc_scancode_map.sight_change_right;
+    sdl_sbc_kbd_scancode_map[51] =
+        g_config.input.keyboard_sbc_scancode_map.rotation_left;
+    sdl_sbc_kbd_scancode_map[52] =
+        g_config.input.keyboard_sbc_scancode_map.rotation_right;
+    sdl_sbc_kbd_scancode_map[53] =
+        g_config.input.keyboard_sbc_scancode_map.left_pedal;
+    sdl_sbc_kbd_scancode_map[54] =
+        g_config.input.keyboard_sbc_scancode_map.right_pedal;
+    sdl_sbc_kbd_scancode_map[55] =
+        g_config.input.keyboard_sbc_scancode_map.middle_pedal;
 
     for (int i = 0; i < 56; i++) {
-        if( (sdl_sbc_kbd_scancode_map[i] < SDL_SCANCODE_UNKNOWN) ||
-            (sdl_sbc_kbd_scancode_map[i] >= SDL_NUM_SCANCODES) ) {
-            fprintf(stderr, "WARNING: Keyboard steel battalion controller map scancode out of range (%d) : Disabled\n", sdl_sbc_kbd_scancode_map[i]);
+        if ((sdl_sbc_kbd_scancode_map[i] < SDL_SCANCODE_UNKNOWN) ||
+            (sdl_sbc_kbd_scancode_map[i] >= SDL_NUM_SCANCODES)) {
+            fprintf(stderr,
+                    "WARNING: Keyboard steel battalion controller map scancode "
+                    "out of range (%d) : Disabled\n",
+                    sdl_sbc_kbd_scancode_map[i]);
             sdl_sbc_kbd_scancode_map[i] = SDL_SCANCODE_UNKNOWN;
         }
     }
@@ -342,14 +407,16 @@ int xemu_input_get_controller_default_bind_port(ControllerState *state, int star
     return -1;
 }
 
-int xemu_input_get_libusb_device_default_bind_port(LibusbDevice *device, int start)
+int xemu_input_get_libusb_device_default_bind_port(LibusbDevice *device,
+                                                   int start)
 {
     assert(device);
     char guid[35] = { 0 };
-    snprintf(guid, sizeof(guid), "USB\\%04x:%04x:%d:%s", device->vendor_id, device->product_id, device->host_bus, device->host_port);
-    
-    for(int i = start; i < 4; i++) {
-        if(strcmp(guid, *port_index_to_settings_key_map[i])== 0) {
+    snprintf(guid, sizeof(guid), "USB\\%04x:%04x:%d:%s", device->vendor_id,
+             device->product_id, device->host_bus, device->host_port);
+
+    for (int i = start; i < 4; i++) {
+        if (strcmp(guid, *port_index_to_settings_key_map[i]) == 0) {
             return i;
         }
     }
@@ -393,7 +460,7 @@ void xemu_input_process_sdl_events(const SDL_Event *event)
         memset(new_con, 0, sizeof(ControllerState));
         new_con->type                 = INPUT_DEVICE_SDL_GAMECONTROLLER;
         new_con->name                 = SDL_GameControllerName(sdl_con);
-        new_con->gp.rumble_enabled    = true;
+        new_con->gp.rumble_enabled = true;
         new_con->sdl_gamecontroller   = sdl_con;
         new_con->sdl_joystick         = SDL_GameControllerGetJoystick(new_con->sdl_gamecontroller);
         new_con->sdl_joystick_id      = SDL_JoystickInstanceID(new_con->sdl_joystick);
@@ -546,45 +613,55 @@ void xemu_input_update_sdl_kbd_controller_state(ControllerState *state)
 
     const uint8_t *kbd = SDL_GetKeyboardState(NULL);
 
-// Update Gamepad Buttons
+    // Update Gamepad Buttons
     for (int i = 0; i < 15; i++) {
         state->gp.buttons |= kbd[sdl_kbd_scancode_map[i]] << i;
     }
 
     // Update Gamepad Axes
-    if (kbd[sdl_kbd_scancode_map[15]]) state->gp.axis[CONTROLLER_AXIS_LSTICK_Y] = 32767;
-    if (kbd[sdl_kbd_scancode_map[16]]) state->gp.axis[CONTROLLER_AXIS_LSTICK_X] = -32768;
-    if (kbd[sdl_kbd_scancode_map[17]]) state->gp.axis[CONTROLLER_AXIS_LSTICK_X] = 32767;
-    if (kbd[sdl_kbd_scancode_map[18]]) state->gp.axis[CONTROLLER_AXIS_LSTICK_Y] = -32768;
-    if (kbd[sdl_kbd_scancode_map[19]]) state->gp.axis[CONTROLLER_AXIS_LTRIG] = 32767;
+    if (kbd[sdl_kbd_scancode_map[15]])
+        state->gp.axis[CONTROLLER_AXIS_LSTICK_Y] = 32767;
+    if (kbd[sdl_kbd_scancode_map[16]])
+        state->gp.axis[CONTROLLER_AXIS_LSTICK_X] = -32768;
+    if (kbd[sdl_kbd_scancode_map[17]])
+        state->gp.axis[CONTROLLER_AXIS_LSTICK_X] = 32767;
+    if (kbd[sdl_kbd_scancode_map[18]])
+        state->gp.axis[CONTROLLER_AXIS_LSTICK_Y] = -32768;
+    if (kbd[sdl_kbd_scancode_map[19]])
+        state->gp.axis[CONTROLLER_AXIS_LTRIG] = 32767;
 
-    if (kbd[sdl_kbd_scancode_map[20]]) state->gp.axis[CONTROLLER_AXIS_RSTICK_Y] = 32767;
-    if (kbd[sdl_kbd_scancode_map[21]]) state->gp.axis[CONTROLLER_AXIS_RSTICK_X] = -32768;
-    if (kbd[sdl_kbd_scancode_map[22]]) state->gp.axis[CONTROLLER_AXIS_RSTICK_X] = 32767;
-    if (kbd[sdl_kbd_scancode_map[23]]) state->gp.axis[CONTROLLER_AXIS_RSTICK_Y] = -32768;
-    if (kbd[sdl_kbd_scancode_map[24]]) state->gp.axis[CONTROLLER_AXIS_RTRIG] = 32767;
+    if (kbd[sdl_kbd_scancode_map[20]])
+        state->gp.axis[CONTROLLER_AXIS_RSTICK_Y] = 32767;
+    if (kbd[sdl_kbd_scancode_map[21]])
+        state->gp.axis[CONTROLLER_AXIS_RSTICK_X] = -32768;
+    if (kbd[sdl_kbd_scancode_map[22]])
+        state->gp.axis[CONTROLLER_AXIS_RSTICK_X] = 32767;
+    if (kbd[sdl_kbd_scancode_map[23]])
+        state->gp.axis[CONTROLLER_AXIS_RSTICK_Y] = -32768;
+    if (kbd[sdl_kbd_scancode_map[24]])
+        state->gp.axis[CONTROLLER_AXIS_RTRIG] = 32767;
 
     state->sbc.buttons = 0;
 
-    if(state->sbc.gearLever == 0)
+    if (state->sbc.gearLever == 0)
         state->sbc.gearLever = 255;
 
     // Update SBC Buttons
-    for(int i = 0; i < 43; i++) {
-        if(kbd[sdl_sbc_kbd_scancode_map[i]])
+    for (int i = 0; i < 43; i++) {
+        if (kbd[sdl_sbc_kbd_scancode_map[i]])
             state->sbc.buttons |= (1ULL << i);
     }
 
-    const uint64_t toggles[5] = { 
-        SBC_BUTTON_FILT_CONTROL_SYSTEM,
-        SBC_BUTTON_OXYGEN_SUPPLY_SYSTEM,
-        SBC_BUTTON_FUEL_FLOW_RATE,
-        SBC_BUTTON_BUFFER_MATERIAL,
-        SBC_BUTTON_VT_LOCATION_MEASUREMENT
-    };
+    const uint64_t toggles[5] = { SBC_BUTTON_FILT_CONTROL_SYSTEM,
+                                  SBC_BUTTON_OXYGEN_SUPPLY_SYSTEM,
+                                  SBC_BUTTON_FUEL_FLOW_RATE,
+                                  SBC_BUTTON_BUFFER_MATERIAL,
+                                  SBC_BUTTON_VT_LOCATION_MEASUREMENT };
 
-    for(int i = 0; i < 5; i++) {
-        if((state->sbc.buttons & toggles[i]) && !(state->sbc.previousButtons & toggles[i])) {   // When the for the toggle is pressed
+    for (int i = 0; i < 5; i++) {
+        if ((state->sbc.buttons & toggles[i]) &&
+            !(state->sbc.previousButtons &
+              toggles[i])) { // When the for the toggle is pressed
             uint8_t byteMask = (uint8_t)(toggles[i] >> 32);
             // Toggle the toggle switch
             state->sbc.toggleSwitches ^= byteMask;
@@ -592,25 +669,28 @@ void xemu_input_update_sdl_kbd_controller_state(ControllerState *state)
     }
 
     // Tuner Dial Left
-    if((state->sbc.buttons & SBC_BUTTON_TUNER_LEFT) && !(state->sbc.previousButtons & SBC_BUTTON_TUNER_LEFT)) {
-        if(state->sbc.tunerDial == 0)
+    if ((state->sbc.buttons & SBC_BUTTON_TUNER_LEFT) &&
+        !(state->sbc.previousButtons & SBC_BUTTON_TUNER_LEFT)) {
+        if (state->sbc.tunerDial == 0)
             state->sbc.tunerDial = 15;
         else
             state->sbc.tunerDial--;
     }
 
     // Tuner Dial Right
-    if((state->sbc.buttons & SBC_BUTTON_TUNER_RIGHT) && !(state->sbc.previousButtons & SBC_BUTTON_TUNER_RIGHT)) {
-        if(state->sbc.tunerDial == 15)
+    if ((state->sbc.buttons & SBC_BUTTON_TUNER_RIGHT) &&
+        !(state->sbc.previousButtons & SBC_BUTTON_TUNER_RIGHT)) {
+        if (state->sbc.tunerDial == 15)
             state->sbc.tunerDial = 0;
         else
             state->sbc.tunerDial++;
     }
 
     // Gear Lever Up
-    if((state->sbc.buttons & SBC_BUTTON_GEAR_UP) && !(state->sbc.previousButtons & SBC_BUTTON_GEAR_UP)) {
-        if(state->sbc.gearLever != 5) {
-            if(state->sbc.gearLever == 255)
+    if ((state->sbc.buttons & SBC_BUTTON_GEAR_UP) &&
+        !(state->sbc.previousButtons & SBC_BUTTON_GEAR_UP)) {
+        if (state->sbc.gearLever != 5) {
+            if (state->sbc.gearLever == 255)
                 state->sbc.gearLever = 1;
             else
                 state->sbc.gearLever++;
@@ -618,9 +698,10 @@ void xemu_input_update_sdl_kbd_controller_state(ControllerState *state)
     }
 
     // Gear Lever Down
-    if((state->sbc.buttons & SBC_BUTTON_GEAR_DOWN) && !(state->sbc.previousButtons & SBC_BUTTON_GEAR_DOWN)) {
-        if(state->sbc.gearLever != 254) {
-            if(state->sbc.gearLever == 1)
+    if ((state->sbc.buttons & SBC_BUTTON_GEAR_DOWN) &&
+        !(state->sbc.previousButtons & SBC_BUTTON_GEAR_DOWN)) {
+        if (state->sbc.gearLever != 254) {
+            if (state->sbc.gearLever == 1)
                 state->sbc.gearLever = 255;
             else
                 state->sbc.gearLever--;
@@ -628,22 +709,35 @@ void xemu_input_update_sdl_kbd_controller_state(ControllerState *state)
     }
 
     // Update SBC Axes
-    if(kbd[sdl_sbc_kbd_scancode_map[43]]) state->sbc.axis[SBC_AXIS_AIMING_Y] = -32768;
-    if(kbd[sdl_sbc_kbd_scancode_map[44]]) state->sbc.axis[SBC_AXIS_AIMING_Y] =  32767;
-    if(kbd[sdl_sbc_kbd_scancode_map[45]]) state->sbc.axis[SBC_AXIS_AIMING_X] = -32768;
-    if(kbd[sdl_sbc_kbd_scancode_map[46]]) state->sbc.axis[SBC_AXIS_AIMING_X] =  32767;
+    if (kbd[sdl_sbc_kbd_scancode_map[43]])
+        state->sbc.axis[SBC_AXIS_AIMING_Y] = -32768;
+    if (kbd[sdl_sbc_kbd_scancode_map[44]])
+        state->sbc.axis[SBC_AXIS_AIMING_Y] = 32767;
+    if (kbd[sdl_sbc_kbd_scancode_map[45]])
+        state->sbc.axis[SBC_AXIS_AIMING_X] = -32768;
+    if (kbd[sdl_sbc_kbd_scancode_map[46]])
+        state->sbc.axis[SBC_AXIS_AIMING_X] = 32767;
 
-    if(kbd[sdl_sbc_kbd_scancode_map[47]]) state->sbc.axis[SBC_AXIS_SIGHT_CHANGE_Y] = -32768;
-    if(kbd[sdl_sbc_kbd_scancode_map[48]]) state->sbc.axis[SBC_AXIS_SIGHT_CHANGE_Y] =  32767;
-    if(kbd[sdl_sbc_kbd_scancode_map[49]]) state->sbc.axis[SBC_AXIS_SIGHT_CHANGE_X] = -32768;
-    if(kbd[sdl_sbc_kbd_scancode_map[50]]) state->sbc.axis[SBC_AXIS_SIGHT_CHANGE_X] =  32767;
+    if (kbd[sdl_sbc_kbd_scancode_map[47]])
+        state->sbc.axis[SBC_AXIS_SIGHT_CHANGE_Y] = -32768;
+    if (kbd[sdl_sbc_kbd_scancode_map[48]])
+        state->sbc.axis[SBC_AXIS_SIGHT_CHANGE_Y] = 32767;
+    if (kbd[sdl_sbc_kbd_scancode_map[49]])
+        state->sbc.axis[SBC_AXIS_SIGHT_CHANGE_X] = -32768;
+    if (kbd[sdl_sbc_kbd_scancode_map[50]])
+        state->sbc.axis[SBC_AXIS_SIGHT_CHANGE_X] = 32767;
 
-    if(kbd[sdl_sbc_kbd_scancode_map[51]]) state->sbc.axis[SBC_AXIS_ROTATION_LEVER] = -32768;
-    if(kbd[sdl_sbc_kbd_scancode_map[52]]) state->sbc.axis[SBC_AXIS_ROTATION_LEVER] =  32767;
+    if (kbd[sdl_sbc_kbd_scancode_map[51]])
+        state->sbc.axis[SBC_AXIS_ROTATION_LEVER] = -32768;
+    if (kbd[sdl_sbc_kbd_scancode_map[52]])
+        state->sbc.axis[SBC_AXIS_ROTATION_LEVER] = 32767;
 
-    if(kbd[sdl_sbc_kbd_scancode_map[53]]) state->sbc.axis[SBC_AXIS_LEFT_PEDAL] = 32767;
-    if(kbd[sdl_sbc_kbd_scancode_map[54]]) state->sbc.axis[SBC_AXIS_RIGHT_PEDAL] = 32767;
-    if(kbd[sdl_sbc_kbd_scancode_map[55]]) state->sbc.axis[SBC_AXIS_MIDDLE_PEDAL] = 32767;
+    if (kbd[sdl_sbc_kbd_scancode_map[53]])
+        state->sbc.axis[SBC_AXIS_LEFT_PEDAL] = 32767;
+    if (kbd[sdl_sbc_kbd_scancode_map[54]])
+        state->sbc.axis[SBC_AXIS_RIGHT_PEDAL] = 32767;
+    if (kbd[sdl_sbc_kbd_scancode_map[55]])
+        state->sbc.axis[SBC_AXIS_MIDDLE_PEDAL] = 32767;
 
     state->sbc.previousButtons = state->sbc.buttons;
 }
@@ -692,9 +786,15 @@ void xemu_input_update_sdl_controller_state(ControllerState *state)
     };
 
     for (int i = 0; i < 15; i++) {
-        state->gp.buttons |= SDL_GameControllerGetButton(state->sdl_gamecontroller, sdl_button_map[i]) << i;
-        if(analog_button_map[i] != -1)
-            state->gp.analog_buttons[analog_button_map[i]] = state->gp.buttons & (1 << i) ? 0xff : 0x00; // SDL buttons are on/off, so make the analog value 255
+        state->gp.buttons |= SDL_GameControllerGetButton(
+                                 state->sdl_gamecontroller, sdl_button_map[i])
+                             << i;
+        if (analog_button_map[i] != -1)
+            state->gp.analog_buttons[analog_button_map[i]] =
+                state->gp.buttons & (1 << i) ?
+                    0xff :
+                    0x00; // SDL buttons are on/off, so make the analog value
+                          // 255
     }
 
     const SDL_GameControllerAxis sdl_axis_map[6] = {
@@ -704,15 +804,18 @@ void xemu_input_update_sdl_controller_state(ControllerState *state)
     };
 
     for (int i = 0; i < 6; i++) {
-        state->gp.axis[i] = SDL_GameControllerGetAxis(state->sdl_gamecontroller, sdl_axis_map[i]);
+        state->gp.axis[i] = SDL_GameControllerGetAxis(state->sdl_gamecontroller,
+                                                      sdl_axis_map[i]);
     }
 
     // FIXME: Check range
-    state->gp.axis[CONTROLLER_AXIS_LSTICK_Y] = -1 - state->gp.axis[CONTROLLER_AXIS_LSTICK_Y];
-    state->gp.axis[CONTROLLER_AXIS_RSTICK_Y] = -1 - state->gp.axis[CONTROLLER_AXIS_RSTICK_Y];
+    state->gp.axis[CONTROLLER_AXIS_LSTICK_Y] =
+        -1 - state->gp.axis[CONTROLLER_AXIS_LSTICK_Y];
+    state->gp.axis[CONTROLLER_AXIS_RSTICK_Y] =
+        -1 - state->gp.axis[CONTROLLER_AXIS_RSTICK_Y];
 
     // xemu_input_print_controller_state(state);
-    
+
     // Update the SBC too, just in case
     const uint64_t sdl_button_map_sbc[8][2] = {
         { SDL_CONTROLLER_BUTTON_A, SBC_BUTTON_MAIN_WEAPON },
@@ -727,24 +830,25 @@ void xemu_input_update_sdl_controller_state(ControllerState *state)
 
     state->sbc.buttons = 0;
 
-    if(state->sbc.gearLever == 0)
+    if (state->sbc.gearLever == 0)
         state->sbc.gearLever = 255;
 
-    for(int i = 0; i < 8; i++) {
-        if(SDL_GameControllerGetButton(state->sdl_gamecontroller, sdl_button_map_sbc[i][0]))
+    for (int i = 0; i < 8; i++) {
+        if (SDL_GameControllerGetButton(state->sdl_gamecontroller,
+                                        sdl_button_map_sbc[i][0]))
             state->sbc.buttons |= sdl_button_map_sbc[i][1];
     }
 
-    const uint64_t toggles[5] = { 
-        SBC_BUTTON_FILT_CONTROL_SYSTEM,
-        SBC_BUTTON_OXYGEN_SUPPLY_SYSTEM,
-        SBC_BUTTON_FUEL_FLOW_RATE,
-        SBC_BUTTON_BUFFER_MATERIAL,
-        SBC_BUTTON_VT_LOCATION_MEASUREMENT
-    };
+    const uint64_t toggles[5] = { SBC_BUTTON_FILT_CONTROL_SYSTEM,
+                                  SBC_BUTTON_OXYGEN_SUPPLY_SYSTEM,
+                                  SBC_BUTTON_FUEL_FLOW_RATE,
+                                  SBC_BUTTON_BUFFER_MATERIAL,
+                                  SBC_BUTTON_VT_LOCATION_MEASUREMENT };
 
-    for(int i = 0; i < 5; i++) {
-        if((state->sbc.buttons & toggles[i]) && !(state->sbc.previousButtons & toggles[i])) {   // When the for the toggle is pressed
+    for (int i = 0; i < 5; i++) {
+        if ((state->sbc.buttons & toggles[i]) &&
+            !(state->sbc.previousButtons &
+              toggles[i])) { // When the for the toggle is pressed
             uint8_t byteMask = (uint8_t)(toggles[i] >> 32);
             // Toggle the toggle switch
             state->sbc.toggleSwitches ^= byteMask;
@@ -752,25 +856,28 @@ void xemu_input_update_sdl_controller_state(ControllerState *state)
     }
 
     // Tuner Dial Left
-    if((state->sbc.buttons & SBC_BUTTON_TUNER_LEFT) && !(state->sbc.previousButtons & SBC_BUTTON_TUNER_LEFT)) {
-        if(state->sbc.tunerDial == 0)
+    if ((state->sbc.buttons & SBC_BUTTON_TUNER_LEFT) &&
+        !(state->sbc.previousButtons & SBC_BUTTON_TUNER_LEFT)) {
+        if (state->sbc.tunerDial == 0)
             state->sbc.tunerDial = 15;
         else
             state->sbc.tunerDial--;
     }
 
     // Tuner Dial Right
-    if((state->sbc.buttons & SBC_BUTTON_TUNER_RIGHT) && !(state->sbc.previousButtons & SBC_BUTTON_TUNER_RIGHT)) {
-        if(state->sbc.tunerDial == 15)
+    if ((state->sbc.buttons & SBC_BUTTON_TUNER_RIGHT) &&
+        !(state->sbc.previousButtons & SBC_BUTTON_TUNER_RIGHT)) {
+        if (state->sbc.tunerDial == 15)
             state->sbc.tunerDial = 0;
         else
             state->sbc.tunerDial++;
     }
 
     // Gear Lever Up
-    if((state->sbc.buttons & SBC_BUTTON_GEAR_UP) && !(state->sbc.previousButtons & SBC_BUTTON_GEAR_UP)) {
-        if(state->sbc.gearLever != 5) {
-            if(state->sbc.gearLever == 255)
+    if ((state->sbc.buttons & SBC_BUTTON_GEAR_UP) &&
+        !(state->sbc.previousButtons & SBC_BUTTON_GEAR_UP)) {
+        if (state->sbc.gearLever != 5) {
+            if (state->sbc.gearLever == 255)
                 state->sbc.gearLever = 1;
             else
                 state->sbc.gearLever++;
@@ -778,21 +885,28 @@ void xemu_input_update_sdl_controller_state(ControllerState *state)
     }
 
     // Gear Lever Down
-    if((state->sbc.buttons & SBC_BUTTON_GEAR_DOWN) && !(state->sbc.previousButtons & SBC_BUTTON_GEAR_DOWN)) {
-        if(state->sbc.gearLever != 254) {
-            if(state->sbc.gearLever == 1)
+    if ((state->sbc.buttons & SBC_BUTTON_GEAR_DOWN) &&
+        !(state->sbc.previousButtons & SBC_BUTTON_GEAR_DOWN)) {
+        if (state->sbc.gearLever != 254) {
+            if (state->sbc.gearLever == 1)
                 state->sbc.gearLever = 255;
             else
                 state->sbc.gearLever--;
         }
     }
 
-    state->sbc.axis[SBC_AXIS_SIGHT_CHANGE_X] = SDL_GameControllerGetAxis(state->sdl_gamecontroller, SDL_CONTROLLER_AXIS_LEFTX);
-    state->sbc.axis[SBC_AXIS_SIGHT_CHANGE_Y] = SDL_GameControllerGetAxis(state->sdl_gamecontroller, SDL_CONTROLLER_AXIS_LEFTY);
-    state->sbc.axis[SBC_AXIS_AIMING_X] = SDL_GameControllerGetAxis(state->sdl_gamecontroller, SDL_CONTROLLER_AXIS_RIGHTX);
-    state->sbc.axis[SBC_AXIS_AIMING_Y] = SDL_GameControllerGetAxis(state->sdl_gamecontroller, SDL_CONTROLLER_AXIS_RIGHTY);
-    state->sbc.axis[SBC_AXIS_MIDDLE_PEDAL] = SDL_GameControllerGetAxis(state->sdl_gamecontroller, SDL_CONTROLLER_AXIS_TRIGGERLEFT);
-    state->sbc.axis[SBC_AXIS_RIGHT_PEDAL] = SDL_GameControllerGetAxis(state->sdl_gamecontroller, SDL_CONTROLLER_AXIS_TRIGGERRIGHT);
+    state->sbc.axis[SBC_AXIS_SIGHT_CHANGE_X] = SDL_GameControllerGetAxis(
+        state->sdl_gamecontroller, SDL_CONTROLLER_AXIS_LEFTX);
+    state->sbc.axis[SBC_AXIS_SIGHT_CHANGE_Y] = SDL_GameControllerGetAxis(
+        state->sdl_gamecontroller, SDL_CONTROLLER_AXIS_LEFTY);
+    state->sbc.axis[SBC_AXIS_AIMING_X] = SDL_GameControllerGetAxis(
+        state->sdl_gamecontroller, SDL_CONTROLLER_AXIS_RIGHTX);
+    state->sbc.axis[SBC_AXIS_AIMING_Y] = SDL_GameControllerGetAxis(
+        state->sdl_gamecontroller, SDL_CONTROLLER_AXIS_RIGHTY);
+    state->sbc.axis[SBC_AXIS_MIDDLE_PEDAL] = SDL_GameControllerGetAxis(
+        state->sdl_gamecontroller, SDL_CONTROLLER_AXIS_TRIGGERLEFT);
+    state->sbc.axis[SBC_AXIS_RIGHT_PEDAL] = SDL_GameControllerGetAxis(
+        state->sdl_gamecontroller, SDL_CONTROLLER_AXIS_TRIGGERRIGHT);
 
     state->sbc.previousButtons = state->sbc.buttons;
 }
@@ -809,7 +923,8 @@ void xemu_input_update_rumble(ControllerState *state)
         return;
     }
 
-    SDL_GameControllerRumble(state->sdl_gamecontroller, state->gp.rumble_l, state->gp.rumble_r, 250);
+    SDL_GameControllerRumble(state->sdl_gamecontroller, state->gp.rumble_l,
+                             state->gp.rumble_r, 250);
     state->last_rumble_updated_ts = qemu_clock_get_us(QEMU_CLOCK_REALTIME);
 }
 
@@ -829,15 +944,18 @@ static DeviceState *xemu_bind_usb_hub(int num_ports, const char *port)
     qdict_put_str(usbhub_qdict, "driver", "usb-hub");
     qdict_put_str(usbhub_qdict, "port", port);
     qdict_put_int(usbhub_qdict, "ports", num_ports);
-    QemuOpts *usbhub_opts = qemu_opts_from_qdict(qemu_find_opts("device"), usbhub_qdict, &error_abort);
+    QemuOpts *usbhub_opts = qemu_opts_from_qdict(qemu_find_opts("device"),
+                                                 usbhub_qdict, &error_abort);
     DeviceState *usbhub_dev = qdev_device_add(usbhub_opts, &error_abort);
 
     return usbhub_dev;
 }
 
-static DeviceState* xemu_input_bind_driver(int index, const char *port, const char *driver)
+static DeviceState *xemu_input_bind_driver(int index, const char *port,
+                                           const char *driver)
 {
-    // Create XID controller. This is connected to Port 1 of the controller's internal USB Hub
+    // Create XID controller. This is connected to Port 1 of the controller's
+    // internal USB Hub
     QDict *qdict = qdict_new();
 
     // Specify device driver
@@ -854,7 +972,8 @@ static DeviceState* xemu_input_bind_driver(int index, const char *port, const ch
     qdict_put_str(qdict, "port", port);
 
     // Create the device
-    QemuOpts *opts = qemu_opts_from_qdict(qemu_find_opts("device"), qdict, &error_abort);
+    QemuOpts *opts =
+        qemu_opts_from_qdict(qemu_find_opts("device"), qdict, &error_abort);
     DeviceState *dev = qdev_device_add(opts, &error_abort);
     assert(dev);
 
@@ -862,9 +981,11 @@ static DeviceState* xemu_input_bind_driver(int index, const char *port, const ch
     return dev;
 }
 
-static DeviceState *xemu_bind_usb_host(int hostbus, const char *hostport, const char *port)
+static DeviceState *xemu_bind_usb_host(int hostbus, const char *hostport,
+                                       const char *port)
 {
-    // Create XID controller. This is connected to Port 1 of the controller's internal USB Hub
+    // Create XID controller. This is connected to Port 1 of the controller's
+    // internal USB Hub
     QDict *qdict = qdict_new();
 
     // specify device driver
@@ -880,7 +1001,8 @@ static DeviceState *xemu_bind_usb_host(int hostbus, const char *hostport, const 
     qdict_put_str(qdict, "port", port);
 
     // Create the device
-    QemuOpts *opts = qemu_opts_from_qdict(qemu_find_opts("device"), qdict, &error_abort);
+    QemuOpts *opts =
+        qemu_opts_from_qdict(qemu_find_opts("device"), qdict, &error_abort);
     DeviceState *dev = qdev_device_add(opts, &error_abort);
     assert(dev);
 
@@ -933,10 +1055,11 @@ void xemu_input_bind(int index, ControllerState *state, int save)
             }
         }
         xemu_settings_set_string(port_index_to_settings_key_map[index], guid_buf);
-        xemu_settings_set_string(port_index_to_driver_settings_key_map[index], bound_drivers[index]);
+        xemu_settings_set_string(port_index_to_driver_settings_key_map[index],
+                                 bound_drivers[index]);
     }
 
-    if(strcmp(bound_drivers[index], DRIVER_USB_PASSTHROUGH) != 0) {
+    if (strcmp(bound_drivers[index], DRIVER_USB_PASSTHROUGH) != 0) {
         if (state) {
             if (state->bound >= 0) {
                 // Device was already bound to another port. Unbind it.
@@ -948,17 +1071,19 @@ void xemu_input_bind(int index, ControllerState *state, int save)
 
             char *tmp;
 
-            bool hasInternalHub = strcmp(bound_drivers[index], DRIVER_STEEL_BATTALION) != 0;
+            bool hasInternalHub =
+                strcmp(bound_drivers[index], DRIVER_STEEL_BATTALION) != 0;
             char *port;
             DeviceState *dev;
 
-            if(hasInternalHub) {
+            if (hasInternalHub) {
                 // Create controller's internal USB hub.
                 tmp = g_strdup_printf("1.%d", port_map[index]);
                 dev = xemu_bind_usb_hub(3, tmp);
                 g_free(tmp);
                 port = g_strdup_printf("1.%d.1", port_map[index]);
-                DeviceState *tmp_dev = xemu_input_bind_driver(index, port, bound_drivers[index]);
+                DeviceState *tmp_dev =
+                    xemu_input_bind_driver(index, port, bound_drivers[index]);
                 object_unref(OBJECT(tmp_dev));
             } else {
                 port = g_strdup_printf("1.%d", port_map[index]);
@@ -976,7 +1101,7 @@ void xemu_input_bind(int index, ControllerState *state, int save)
 
 void xemu_input_bind_passthrough(int index, LibusbDevice *state, int save)
 {
-    if(bound_libusb_devices[index]) {
+    if (bound_libusb_devices[index]) {
         assert(bound_libusb_devices[index]->device != NULL);
         Error *err = NULL;
         qdev_unplug((DeviceState *)bound_libusb_devices[index]->device, &err);
@@ -987,43 +1112,55 @@ void xemu_input_bind_passthrough(int index, LibusbDevice *state, int save)
         bound_libusb_devices[index] = NULL;
     }
 
-    if(save) {
+    if (save) {
         char guid_buf[35] = { 0 };
-        if(state) {
+        if (state) {
             // format:     hex       hex        int      string
             //         USB\vendor_id:product_id:host_bus:host_port
-            snprintf(guid_buf, sizeof(guid_buf), "USB\\%04x:%04x:%d:%s", state->vendor_id, state->product_id, state->host_bus, state->host_port);
+            snprintf(guid_buf, sizeof(guid_buf), "USB\\%04x:%04x:%d:%s",
+                     state->vendor_id, state->product_id, state->host_bus,
+                     state->host_port);
         }
-        xemu_settings_set_string(port_index_to_settings_key_map[index], guid_buf);
-        xemu_settings_set_string(port_index_to_driver_settings_key_map[index], bound_drivers[index]);
+        xemu_settings_set_string(port_index_to_settings_key_map[index],
+                                 guid_buf);
+        xemu_settings_set_string(port_index_to_driver_settings_key_map[index],
+                                 bound_drivers[index]);
     }
 
-    if(strcmp(bound_drivers[index], DRIVER_USB_PASSTHROUGH) == 0) {
-        if(state) {
+    if (strcmp(bound_drivers[index], DRIVER_USB_PASSTHROUGH) == 0) {
+        if (state) {
             if (state->bound >= 0) {
                 // Device was already bound to another port. Unbind it.
-                xemu_input_bind_passthrough(state->bound, NULL, state->bound != index);
+                xemu_input_bind_passthrough(state->bound, NULL,
+                                            state->bound != index);
             }
 
             bound_libusb_devices[index] = state;
             bound_libusb_devices[index]->bound = index;
 
-            if(state->internal_hub_ports > 0) {
+            if (state->internal_hub_ports > 0) {
                 // Create controller's internal USB hub.
                 char *port = g_strdup_printf("1.%d", port_map[index]);
-                DeviceState *usbhub_dev = xemu_bind_usb_hub(state->internal_hub_ports, port);
+                DeviceState *usbhub_dev =
+                    xemu_bind_usb_hub(state->internal_hub_ports, port);
                 g_free(port);
 
-                // Create XID controller. This is connected to Port 1 of the controller's internal USB Hub
+                // Create XID controller. This is connected to Port 1 of the
+                // controller's internal USB Hub
                 port = g_strdup_printf("1.%d.1", port_map[index]);
-                DeviceState *controller_dev = xemu_bind_usb_host(state->host_bus, state->host_port, port);
+                DeviceState *controller_dev =
+                    xemu_bind_usb_host(state->host_bus, state->host_port, port);
                 g_free(port);
 
-                if(state->internal_hub_ports > 1) {
-                    for(int i = 1; i < state->internal_hub_ports; i++) {
-                        port = g_strdup_printf("1.%d.%d", port_map[index], i+1);
-                        char *hostport = g_strdup_printf("%.*s%d", (int)strlen(state->host_port) - 1, state->host_port, i+1);
-                        DeviceState *expansion_port_dev = xemu_bind_usb_host(state->host_bus, hostport, port);
+                if (state->internal_hub_ports > 1) {
+                    for (int i = 1; i < state->internal_hub_ports; i++) {
+                        port =
+                            g_strdup_printf("1.%d.%d", port_map[index], i + 1);
+                        char *hostport = g_strdup_printf(
+                            "%.*s%d", (int)strlen(state->host_port) - 1,
+                            state->host_port, i + 1);
+                        DeviceState *expansion_port_dev =
+                            xemu_bind_usb_host(state->host_bus, hostport, port);
                         g_free(port);
                         g_free(hostport);
                         object_unref(OBJECT(expansion_port_dev));
@@ -1033,12 +1170,14 @@ void xemu_input_bind_passthrough(int index, LibusbDevice *state, int save)
                 // Unref for eventual cleanup
                 object_unref(OBJECT(usbhub_dev));
                 object_unref(OBJECT(controller_dev));
-                
+
                 state->device = usbhub_dev;
             } else {
-                // Create XID controller. This is connected to Port 1 of the controller's internal USB Hub
+                // Create XID controller. This is connected to Port 1 of the
+                // controller's internal USB Hub
                 char *port = g_strdup_printf("1.%d", port_map[index]);
-                DeviceState *controller_dev = xemu_bind_usb_host(state->host_bus, state->host_port, port);
+                DeviceState *controller_dev =
+                    xemu_bind_usb_host(state->host_bus, state->host_port, port);
                 g_free(port);
 
                 // Unref for eventual cleanup
@@ -1056,7 +1195,8 @@ bool xemu_input_bind_xmu(int player_index, int expansion_slot_index,
     assert(player_index >= 0 && player_index < 4);
     assert(expansion_slot_index >= 0 && expansion_slot_index < 2);
 
-    bool hasInternalHub = strcmp(bound_drivers[player_index], DRIVER_STEEL_BATTALION) != 0;
+    bool hasInternalHub =
+        strcmp(bound_drivers[player_index], DRIVER_STEEL_BATTALION) != 0;
     assert(hasInternalHub);
 
     ControllerState *player = bound_controllers[player_index];
@@ -1181,8 +1321,9 @@ void xemu_input_unbind_xmu(int player_index, int expansion_slot_index)
 
 void xemu_input_rebind_xmu(int port)
 {
-    bool hasInternalHub = strcmp(bound_drivers[port], DRIVER_STEEL_BATTALION) != 0;
-    if(!hasInternalHub)
+    bool hasInternalHub =
+        strcmp(bound_drivers[port], DRIVER_STEEL_BATTALION) != 0;
+    if (!hasInternalHub)
         return;
 
     // Try to bind peripherals back to controller
@@ -1240,49 +1381,56 @@ int xemu_input_get_test_mode(void)
     return test_mode;
 }
 
-void xemu_input_update_gamepad(ControllerState *state, XIDGamepadReport *in_state)
+void xemu_input_update_gamepad(ControllerState *state,
+                               XIDGamepadReport *in_state)
 {
     const int button_map_analog[6][2] = {
-        { GAMEPAD_A,     CONTROLLER_BUTTON_A     },
-        { GAMEPAD_B,     CONTROLLER_BUTTON_B     },
-        { GAMEPAD_X,     CONTROLLER_BUTTON_X     },
-        { GAMEPAD_Y,     CONTROLLER_BUTTON_Y     },
+        { GAMEPAD_A, CONTROLLER_BUTTON_A },
+        { GAMEPAD_B, CONTROLLER_BUTTON_B },
+        { GAMEPAD_X, CONTROLLER_BUTTON_X },
+        { GAMEPAD_Y, CONTROLLER_BUTTON_Y },
         { GAMEPAD_BLACK, CONTROLLER_BUTTON_BLACK },
         { GAMEPAD_WHITE, CONTROLLER_BUTTON_WHITE },
     };
 
     const int button_map_binary[8][2] = {
-        { GAMEPAD_BACK,        CONTROLLER_BUTTON_BACK       },
-        { GAMEPAD_START,       CONTROLLER_BUTTON_START      },
-        { GAMEPAD_LEFT_THUMB,  CONTROLLER_BUTTON_LSTICK     },
-        { GAMEPAD_RIGHT_THUMB, CONTROLLER_BUTTON_RSTICK     },
-        { GAMEPAD_DPAD_UP,     CONTROLLER_BUTTON_DPAD_UP    },
-        { GAMEPAD_DPAD_DOWN,   CONTROLLER_BUTTON_DPAD_DOWN  },
-        { GAMEPAD_DPAD_LEFT,   CONTROLLER_BUTTON_DPAD_LEFT  },
-        { GAMEPAD_DPAD_RIGHT,  CONTROLLER_BUTTON_DPAD_RIGHT },
+        { GAMEPAD_BACK, CONTROLLER_BUTTON_BACK },
+        { GAMEPAD_START, CONTROLLER_BUTTON_START },
+        { GAMEPAD_LEFT_THUMB, CONTROLLER_BUTTON_LSTICK },
+        { GAMEPAD_RIGHT_THUMB, CONTROLLER_BUTTON_RSTICK },
+        { GAMEPAD_DPAD_UP, CONTROLLER_BUTTON_DPAD_UP },
+        { GAMEPAD_DPAD_DOWN, CONTROLLER_BUTTON_DPAD_DOWN },
+        { GAMEPAD_DPAD_LEFT, CONTROLLER_BUTTON_DPAD_LEFT },
+        { GAMEPAD_DPAD_RIGHT, CONTROLLER_BUTTON_DPAD_RIGHT },
     };
 
     state->gp.buttons = 0;
     for (int i = 0; i < 6; i++) {
-        state->gp.analog_buttons[i] = in_state->bAnalogButtons[button_map_analog[i][0]];
-        if(state->gp.analog_buttons[i] > 10)
+        state->gp.analog_buttons[i] =
+            in_state->bAnalogButtons[button_map_analog[i][0]];
+        if (state->gp.analog_buttons[i] > 10)
             state->gp.buttons |= button_map_analog[i][1];
     }
 
     for (int i = 0; i < 8; i++) {
-        if(in_state->wButtons & BUTTON_MASK(button_map_binary[i][0]))
+        if (in_state->wButtons & BUTTON_MASK(button_map_binary[i][0]))
             state->gp.buttons |= button_map_binary[i][1];
     }
 
-    state->gp.axis[CONTROLLER_AXIS_LTRIG] = (int16_t)(0x7fffL * in_state->bAnalogButtons[GAMEPAD_LEFT_TRIGGER] / 255);
-    state->gp.axis[CONTROLLER_AXIS_RTRIG] = (int16_t)(0x7fffL * in_state->bAnalogButtons[GAMEPAD_RIGHT_TRIGGER] / 255);
+    state->gp.axis[CONTROLLER_AXIS_LTRIG] =
+        (int16_t)(0x7fffL * in_state->bAnalogButtons[GAMEPAD_LEFT_TRIGGER] /
+                  255);
+    state->gp.axis[CONTROLLER_AXIS_RTRIG] =
+        (int16_t)(0x7fffL * in_state->bAnalogButtons[GAMEPAD_RIGHT_TRIGGER] /
+                  255);
     state->gp.axis[CONTROLLER_AXIS_LSTICK_X] = in_state->sThumbLX;
     state->gp.axis[CONTROLLER_AXIS_LSTICK_Y] = in_state->sThumbLY;
     state->gp.axis[CONTROLLER_AXIS_RSTICK_X] = in_state->sThumbRX;
     state->gp.axis[CONTROLLER_AXIS_RSTICK_Y] = in_state->sThumbRY;
 }
 
-void xemu_input_update_steel_battalion(ControllerState *state, XIDSteelBattalionReport *in_state)
+void xemu_input_update_steel_battalion(ControllerState *state,
+                                       XIDSteelBattalionReport *in_state)
 {
     state->sbc.buttons = (uint64_t)in_state->dwButtons;
     state->sbc.buttons |= ((uint64_t)in_state->bMoreButtons) << 32;
@@ -1290,12 +1438,22 @@ void xemu_input_update_steel_battalion(ControllerState *state, XIDSteelBattalion
 
     state->sbc.axis[SBC_AXIS_SIGHT_CHANGE_X] = in_state->sSightChangeX;
     state->sbc.axis[SBC_AXIS_SIGHT_CHANGE_Y] = in_state->sSightChangeY;
-    state->sbc.axis[SBC_AXIS_AIMING_X] = (int16_t)((in_state->bAimingX - 128) << 8); // Convert from uint8_t to int16_t
-    state->sbc.axis[SBC_AXIS_AIMING_Y] = (int16_t)((in_state->bAimingY - 128) << 8); // Convert from uint8_t to int16_t
+    state->sbc.axis[SBC_AXIS_AIMING_X] =
+        (int16_t)((in_state->bAimingX - 128)
+                  << 8); // Convert from uint8_t to int16_t
+    state->sbc.axis[SBC_AXIS_AIMING_Y] =
+        (int16_t)((in_state->bAimingY - 128)
+                  << 8); // Convert from uint8_t to int16_t
     state->sbc.axis[SBC_AXIS_ROTATION_LEVER] = in_state->sRotationLever;
-    state->sbc.axis[SBC_AXIS_LEFT_PEDAL] = (int16_t)(in_state->wLeftPedal >> 1);     // Convert from uint16_t to int16_t
-    state->sbc.axis[SBC_AXIS_MIDDLE_PEDAL] = (int16_t)(in_state->wMiddlePedal >> 1); // Convert from uint16_t to int16_t
-    state->sbc.axis[SBC_AXIS_RIGHT_PEDAL] = (int16_t)(in_state->wRightPedal >> 1);   // Convert from uint16_t to int16_t
+    state->sbc.axis[SBC_AXIS_LEFT_PEDAL] =
+        (int16_t)(in_state->wLeftPedal >>
+                  1); // Convert from uint16_t to int16_t
+    state->sbc.axis[SBC_AXIS_MIDDLE_PEDAL] =
+        (int16_t)(in_state->wMiddlePedal >>
+                  1); // Convert from uint16_t to int16_t
+    state->sbc.axis[SBC_AXIS_RIGHT_PEDAL] =
+        (int16_t)(in_state->wRightPedal >>
+                  1); // Convert from uint16_t to int16_t
 
     state->sbc.gearLever = in_state->ucGearLever;
     state->sbc.tunerDial = in_state->ucTunerDial;

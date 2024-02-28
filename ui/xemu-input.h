@@ -28,9 +28,9 @@
 #include <SDL2/SDL.h>
 #include <stdbool.h>
 
-#include "qemu/queue.h"
 #include "hw/usb-passthrough.h"
 #include "hw/xid.h"
+#include "qemu/queue.h"
 
 #define DRIVER_DUKE "usb-xbox-gamepad"
 #define DRIVER_S "usb-xbox-gamepad-s"
@@ -63,51 +63,52 @@ enum controller_state_buttons_mask {
 };
 
 enum steel_battalion_controller_state_buttons_mask {
-    SBC_BUTTON_MAIN_WEAPON              = 0x01,
-    SBC_BUTTON_SUB_WEAPON               = 0x02,
-	SBC_BUTTON_LOCK_ON                  = 0x04,
-	SBC_BUTTON_EJECT                    = 0x08,
-	SBC_BUTTON_COCKPIT_HATCH            = 0x10,
-	SBC_BUTTON_IGNITION                 = 0x20,
-	SBC_BUTTON_START                    = 0x40,
-	SBC_BUTTON_OPEN_CLOSE               = 0x80,
-	SBC_BUTTON_MAP_ZOOM_IN_OUT          = 0x100,
-	SBC_BUTTON_MODE_SELECT              = 0x200,
-	SBC_BUTTON_SUB_MONITOR_MODE_SELECT  = 0x400,
-	SBC_BUTTON_ZOOM_IN                  = 0x800,
-	SBC_BUTTON_ZOOM_OUT                 = 0x1000,
-	SBC_BUTTON_FSS                      = 0x2000,
-	SBC_BUTTON_MANIPULATOR              = 0x4000,
-	SBC_BUTTON_LINE_COLOR_CHANGE        = 0x8000,
-	SBC_BUTTON_WASHING                  = 0x10000,
-	SBC_BUTTON_EXTINGUISHER             = 0x20000,
-	SBC_BUTTON_CHAFF                    = 0x40000,
-	SBC_BUTTON_TANK_DETACH              = 0x80000,
-	SBC_BUTTON_OVERRIDE                 = 0x100000,
-	SBC_BUTTON_NIGHT_SCOPE              = 0x200000,
-	SBC_BUTTON_FUNC1                    = 0x400000,
-	SBC_BUTTON_FUNC2                    = 0x800000,
-	SBC_BUTTON_FUNC3                    = 0x1000000,
-	SBC_BUTTON_MAIN_WEAPON_CONTROL      = 0x2000000,
-	SBC_BUTTON_SUB_WEAPON_CONTROL       = 0x4000000,
-	SBC_BUTTON_MAGAZINE_CHANGE          = 0x8000000,
-	SBC_BUTTON_COM1                     = 0x10000000,
-	SBC_BUTTON_COM2                     = 0x20000000,
-	SBC_BUTTON_COM3                     = 0x40000000,
-	SBC_BUTTON_COM4                     = 0x80000000
+    SBC_BUTTON_MAIN_WEAPON = 0x01,
+    SBC_BUTTON_SUB_WEAPON = 0x02,
+    SBC_BUTTON_LOCK_ON = 0x04,
+    SBC_BUTTON_EJECT = 0x08,
+    SBC_BUTTON_COCKPIT_HATCH = 0x10,
+    SBC_BUTTON_IGNITION = 0x20,
+    SBC_BUTTON_START = 0x40,
+    SBC_BUTTON_OPEN_CLOSE = 0x80,
+    SBC_BUTTON_MAP_ZOOM_IN_OUT = 0x100,
+    SBC_BUTTON_MODE_SELECT = 0x200,
+    SBC_BUTTON_SUB_MONITOR_MODE_SELECT = 0x400,
+    SBC_BUTTON_ZOOM_IN = 0x800,
+    SBC_BUTTON_ZOOM_OUT = 0x1000,
+    SBC_BUTTON_FSS = 0x2000,
+    SBC_BUTTON_MANIPULATOR = 0x4000,
+    SBC_BUTTON_LINE_COLOR_CHANGE = 0x8000,
+    SBC_BUTTON_WASHING = 0x10000,
+    SBC_BUTTON_EXTINGUISHER = 0x20000,
+    SBC_BUTTON_CHAFF = 0x40000,
+    SBC_BUTTON_TANK_DETACH = 0x80000,
+    SBC_BUTTON_OVERRIDE = 0x100000,
+    SBC_BUTTON_NIGHT_SCOPE = 0x200000,
+    SBC_BUTTON_FUNC1 = 0x400000,
+    SBC_BUTTON_FUNC2 = 0x800000,
+    SBC_BUTTON_FUNC3 = 0x1000000,
+    SBC_BUTTON_MAIN_WEAPON_CONTROL = 0x2000000,
+    SBC_BUTTON_SUB_WEAPON_CONTROL = 0x4000000,
+    SBC_BUTTON_MAGAZINE_CHANGE = 0x8000000,
+    SBC_BUTTON_COM1 = 0x10000000,
+    SBC_BUTTON_COM2 = 0x20000000,
+    SBC_BUTTON_COM3 = 0x40000000,
+    SBC_BUTTON_COM4 = 0x80000000
 };
 
-#define SBC_BUTTON_COM5                       0x100000000ULL         // These last 7 buttons are in bMoreButtons
-#define SBC_BUTTON_SIGHT_CHANGE               0x200000000ULL
-#define SBC_BUTTON_FILT_CONTROL_SYSTEM        0x400000000ULL
-#define SBC_BUTTON_OXYGEN_SUPPLY_SYSTEM       0x800000000ULL
-#define SBC_BUTTON_FUEL_FLOW_RATE             0x1000000000ULL
-#define SBC_BUTTON_BUFFER_MATERIAL            0x2000000000ULL
-#define SBC_BUTTON_VT_LOCATION_MEASUREMENT    0x4000000000ULL
-#define SBC_BUTTON_GEAR_UP                    0x8000000000ULL
-#define SBC_BUTTON_GEAR_DOWN                  0x10000000000ULL
-#define SBC_BUTTON_TUNER_LEFT                 0x20000000000ULL
-#define SBC_BUTTON_TUNER_RIGHT                0x40000000000ULL
+#define SBC_BUTTON_COM5 \
+    0x100000000ULL // These last 7 buttons are in bMoreButtons
+#define SBC_BUTTON_SIGHT_CHANGE 0x200000000ULL
+#define SBC_BUTTON_FILT_CONTROL_SYSTEM 0x400000000ULL
+#define SBC_BUTTON_OXYGEN_SUPPLY_SYSTEM 0x800000000ULL
+#define SBC_BUTTON_FUEL_FLOW_RATE 0x1000000000ULL
+#define SBC_BUTTON_BUFFER_MATERIAL 0x2000000000ULL
+#define SBC_BUTTON_VT_LOCATION_MEASUREMENT 0x4000000000ULL
+#define SBC_BUTTON_GEAR_UP 0x8000000000ULL
+#define SBC_BUTTON_GEAR_DOWN 0x10000000000ULL
+#define SBC_BUTTON_TUNER_LEFT 0x20000000000ULL
+#define SBC_BUTTON_TUNER_RIGHT 0x40000000000ULL
 
 #define CONTROLLER_STATE_BUTTON_ID_TO_MASK(x) (1<<x)
 
@@ -158,7 +159,7 @@ typedef struct XmuState {
 typedef struct GamepadState {
     // Input state
     uint16_t buttons;
-    uint8_t  analog_buttons[CONTROLLER_ANALOG_BTN__COUNT];
+    uint8_t analog_buttons[CONTROLLER_ANALOG_BTN__COUNT];
     int16_t  axis[CONTROLLER_AXIS__COUNT];
 
     // Rendering state hacked on here for convenience but needs to be moved (FIXME)
@@ -222,8 +223,10 @@ ControllerState *xemu_input_get_bound(int index);
 LibusbDevice *xemu_input_get_bound_device(int index);
 void xemu_input_bind(int index, ControllerState *state, int save);
 void xemu_input_bind_passthrough(int index, LibusbDevice *device, int save);
-int xemu_input_get_controller_default_bind_port(ControllerState *state, int start);
-int xemu_input_get_libusb_device_default_bind_port(LibusbDevice *device, int start);
+int xemu_input_get_controller_default_bind_port(ControllerState *state,
+                                                int start);
+int xemu_input_get_libusb_device_default_bind_port(LibusbDevice *device,
+                                                   int start);
 bool xemu_input_bind_xmu(int player_index, int peripheral_port_index,
                          const char *filename, bool is_rebind);
 void xemu_input_rebind_xmu(int port);
@@ -235,8 +238,10 @@ void xemu_save_peripheral_settings(int player_index, int peripheral_index,
 void xemu_input_set_test_mode(int enabled);
 int xemu_input_get_test_mode(void);
 
-void xemu_input_update_gamepad(ControllerState *state, XIDGamepadReport *in_state);
-void xemu_input_update_steel_battalion(ControllerState *state, XIDSteelBattalionReport *in_state);
+void xemu_input_update_gamepad(ControllerState *state,
+                               XIDGamepadReport *in_state);
+void xemu_input_update_steel_battalion(ControllerState *state,
+                                       XIDSteelBattalionReport *in_state);
 
 
 #ifdef __cplusplus

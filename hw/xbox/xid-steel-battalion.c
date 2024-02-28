@@ -19,10 +19,10 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "xid.h"
 #include "../../ui/xemu-input.h"
+#include "xid.h"
 
-//#define DEBUG_XID
+// #define DEBUG_XID
 #ifdef DEBUG_XID
 #define DPRINTF printf
 #else
@@ -35,54 +35,58 @@
 #define STEEL_BATTALION_OUT_ENDPOINT_ID 0x01
 
 typedef struct USBXIDSteelBattalionState {
-    USBDevice                       dev;
-    USBEndpoint                    *intr;
-    const XIDDesc                  *xid_desc;
-    XIDSteelBattalionReport         in_state;
-    XIDSteelBattalionReport         in_state_capabilities;
-    XIDSteelBattalionOutputReport   out_state;
-    XIDSteelBattalionOutputReport   out_state_capabilities;
-    uint8_t                         device_index;
+    USBDevice dev;
+    USBEndpoint *intr;
+    const XIDDesc *xid_desc;
+    XIDSteelBattalionReport in_state;
+    XIDSteelBattalionReport in_state_capabilities;
+    XIDSteelBattalionOutputReport out_state;
+    XIDSteelBattalionOutputReport out_state_capabilities;
+    uint8_t device_index;
 } USBXIDSteelBattalionState;
 
-#define USB_XID_SB(obj) OBJECT_CHECK(USBXIDSteelBattalionState, (obj), TYPE_USB_XID_STEEL_BATTALION)
+#define USB_XID_SB(obj) \
+    OBJECT_CHECK(USBXIDSteelBattalionState, (obj), TYPE_USB_XID_STEEL_BATTALION)
 
 static const USBDescIface desc_iface_steel_battalion = {
-    .bInterfaceNumber              = 0,
-    .bNumEndpoints                 = 2,
-    .bInterfaceClass               = USB_CLASS_XID,
-    .bInterfaceSubClass            = 0x42,
-    .bInterfaceProtocol            = 0x00,
-    .eps = (USBDescEndpoint[]) {
-        {
-            .bEndpointAddress      = USB_DIR_IN | STEEL_BATTALION_IN_ENDPOINT_ID,
-            .bmAttributes          = USB_ENDPOINT_XFER_INT,
-            .wMaxPacketSize        = 0x20,
-            .bInterval             = 4,
+    .bInterfaceNumber = 0,
+    .bNumEndpoints = 2,
+    .bInterfaceClass = USB_CLASS_XID,
+    .bInterfaceSubClass = 0x42,
+    .bInterfaceProtocol = 0x00,
+    .eps =
+        (USBDescEndpoint[]){
+            {
+                .bEndpointAddress = USB_DIR_IN | STEEL_BATTALION_IN_ENDPOINT_ID,
+                .bmAttributes = USB_ENDPOINT_XFER_INT,
+                .wMaxPacketSize = 0x20,
+                .bInterval = 4,
+            },
+            {
+                .bEndpointAddress =
+                    USB_DIR_OUT | STEEL_BATTALION_OUT_ENDPOINT_ID,
+                .bmAttributes = USB_ENDPOINT_XFER_INT,
+                .wMaxPacketSize = 0x20,
+                .bInterval = 4,
+            },
         },
-        {
-            .bEndpointAddress      = USB_DIR_OUT | STEEL_BATTALION_OUT_ENDPOINT_ID,
-            .bmAttributes          = USB_ENDPOINT_XFER_INT,
-            .wMaxPacketSize        = 0x20,
-            .bInterval             = 4,
-        },
-    },
 };
 
 static const USBDescDevice desc_device_steel_battalion = {
-    .bcdUSB                        = 0x0110,
-    .bMaxPacketSize0               = 0x40,
-    .bNumConfigurations            = 1,
-    .confs = (USBDescConfig[]) {
-        {
-            .bNumInterfaces        = 1,
-            .bConfigurationValue   = 1,
-            .bmAttributes          = USB_CFG_ATT_ONE,
-            .bMaxPower             = 50,
-            .nif = 1,
-            .ifs = &desc_iface_steel_battalion,
+    .bcdUSB = 0x0110,
+    .bMaxPacketSize0 = 0x40,
+    .bNumConfigurations = 1,
+    .confs =
+        (USBDescConfig[]){
+            {
+                .bNumInterfaces = 1,
+                .bConfigurationValue = 1,
+                .bmAttributes = USB_CFG_ATT_ONE,
+                .bMaxPower = 50,
+                .nif = 1,
+                .ifs = &desc_iface_steel_battalion,
+            },
         },
-    },
 };
 
 static const USBDesc desc_xbox_steel_battalion = {
@@ -99,19 +103,19 @@ static const USBDesc desc_xbox_steel_battalion = {
 };
 
 static const XIDDesc desc_xid_steel_battalion = {
-    .bLength              = 0x10,
-    .bDescriptorType      = USB_DT_XID,
-    .bcdXid               = 0x100,
-    .bType                = XID_DEVICETYPE_STEEL_BATTALION,
-    .bSubType             = XID_DEVICESUBTYPE_GAMEPAD,
-    .bMaxInputReportSize  = 26,
+    .bLength = 0x10,
+    .bDescriptorType = USB_DT_XID,
+    .bcdXid = 0x100,
+    .bType = XID_DEVICETYPE_STEEL_BATTALION,
+    .bSubType = XID_DEVICESUBTYPE_GAMEPAD,
+    .bMaxInputReportSize = 26,
     .bMaxOutputReportSize = 32,
     .wAlternateProductIds = { 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF },
 };
 
 static void update_sbc_input(USBXIDSteelBattalionState *s)
 {
-    if(xemu_input_get_test_mode()) {
+    if (xemu_input_get_test_mode()) {
         // Don't report changes if we are testing the controller while running
         return;
     }
@@ -126,8 +130,12 @@ static void update_sbc_input(USBXIDSteelBattalionState *s)
 
     s->in_state.sSightChangeX = state->sbc.axis[SBC_AXIS_SIGHT_CHANGE_X];
     s->in_state.sSightChangeY = state->sbc.axis[SBC_AXIS_SIGHT_CHANGE_Y];
-    s->in_state.bAimingX = (uint8_t)(128 + (state->sbc.axis[SBC_AXIS_AIMING_X] / 256));          // Convert from int16_t to uint8_t
-    s->in_state.bAimingY = (uint8_t)(128 + (state->sbc.axis[SBC_AXIS_AIMING_Y] / 256));          // Convert from int16_t to uint8_t
+    s->in_state.bAimingX =
+        (uint8_t)(128 + (state->sbc.axis[SBC_AXIS_AIMING_X] /
+                         256)); // Convert from int16_t to uint8_t
+    s->in_state.bAimingY =
+        (uint8_t)(128 + (state->sbc.axis[SBC_AXIS_AIMING_Y] /
+                         256)); // Convert from int16_t to uint8_t
     s->in_state.sRotationLever = state->sbc.axis[SBC_AXIS_ROTATION_LEVER];
     s->in_state.wLeftPedal = (uint16_t)state->sbc.axis[SBC_AXIS_LEFT_PEDAL];
     s->in_state.wMiddlePedal = (uint16_t)state->sbc.axis[SBC_AXIS_MIDDLE_PEDAL];
@@ -138,13 +146,17 @@ static void update_sbc_input(USBXIDSteelBattalionState *s)
 }
 
 static void usb_xid_steel_battalion_handle_control(USBDevice *dev, USBPacket *p,
-               int request, int value, int index, int length, uint8_t *data)
+                                                   int request, int value,
+                                                   int index, int length,
+                                                   uint8_t *data)
 {
-    USBXIDSteelBattalionState *s = DO_UPCAST(USBXIDSteelBattalionState, dev, dev);
+    USBXIDSteelBattalionState *s =
+        DO_UPCAST(USBXIDSteelBattalionState, dev, dev);
 
     DPRINTF("xid handle_control 0x%x 0x%x\n", request, value);
 
-    int ret = usb_desc_handle_control(dev, p, request, value, index, length, data);
+    int ret =
+        usb_desc_handle_control(dev, p, request, value, index, length, data);
     if (ret >= 0) {
         DPRINTF("xid handled by usb_desc_handle_control: %d\n", ret);
         return;
@@ -181,7 +193,7 @@ static void usb_xid_steel_battalion_handle_control(USBDevice *dev, USBPacket *p,
             } else {
                 p->status = USB_RET_STALL;
             }
-            //update_output(s);
+            // update_output(s);
         } else {
             p->status = USB_RET_STALL;
             assert(false);
@@ -218,21 +230,21 @@ static void usb_xid_steel_battalion_handle_control(USBDevice *dev, USBPacket *p,
             assert(false);
         }
         break;
-    case ((USB_DIR_IN|USB_TYPE_CLASS|USB_RECIP_DEVICE)<<8)
-             | USB_REQ_GET_DESCRIPTOR:
+    case ((USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_DEVICE) << 8) |
+        USB_REQ_GET_DESCRIPTOR:
         /* FIXME: ! */
-        DPRINTF("xid unknown xpad request 0x%x: value = 0x%x\n",
-                request, value);
+        DPRINTF("xid unknown xpad request 0x%x: value = 0x%x\n", request,
+                value);
         memset(data, 0x00, length);
-        //FIXME: Intended for the hub: usbd_get_hub_descriptor, UT_READ_CLASS?!
+        // FIXME: Intended for the hub: usbd_get_hub_descriptor, UT_READ_CLASS?!
         p->status = USB_RET_STALL;
-        //assert(false);
+        // assert(false);
         break;
-    case ((USB_DIR_OUT|USB_TYPE_STANDARD|USB_RECIP_ENDPOINT)<<8)
-             | USB_REQ_CLEAR_FEATURE:
+    case ((USB_DIR_OUT | USB_TYPE_STANDARD | USB_RECIP_ENDPOINT) << 8) |
+        USB_REQ_CLEAR_FEATURE:
         /* FIXME: ! */
-        DPRINTF("xid unknown xpad request 0x%x: value = 0x%x\n",
-                request, value);
+        DPRINTF("xid unknown xpad request 0x%x: value = 0x%x\n", request,
+                value);
         memset(data, 0x00, length);
         p->status = USB_RET_STALL;
         break;
@@ -297,9 +309,11 @@ static void print_xid_steel_battalion_output_data(XIDSteelBattalionOutputReport 
 
 static void usb_xid_steel_battalion_handle_data(USBDevice *dev, USBPacket *p)
 {
-    USBXIDSteelBattalionState *s = DO_UPCAST(USBXIDSteelBattalionState, dev, dev);
+    USBXIDSteelBattalionState *s =
+        DO_UPCAST(USBXIDSteelBattalionState, dev, dev);
 
-    DPRINTF("xid handle_steel_battalion_data 0x%x %d 0x%zx\n", p->pid, p->ep->nr, p->iov.size);
+    DPRINTF("xid handle_steel_battalion_data 0x%x %d 0x%zx\n", p->pid,
+            p->ep->nr, p->iov.size);
 
     switch (p->pid) {
     case USB_TOKEN_IN:
@@ -313,8 +327,9 @@ static void usb_xid_steel_battalion_handle_data(USBDevice *dev, USBPacket *p)
     case USB_TOKEN_OUT:
         if (p->ep->nr == STEEL_BATTALION_OUT_ENDPOINT_ID) {
             usb_packet_copy(p, &s->out_state, s->out_state.length);
-            // TODO: Update output for Steel Battalion Controller here, if we want to. 
-            // It's LED data, so, maybe use it for RGB integration with RGB Keyboards?
+            // TODO: Update output for Steel Battalion Controller here, if we
+            // want to. It's LED data, so, maybe use it for RGB integration with
+            // RGB Keyboards?
             // print_xid_steel_battalion_output_data(&s->out_state);
         } else {
             assert(false);
@@ -331,11 +346,11 @@ static void usb_xid_steel_battalion_class_initfn(ObjectClass *klass, void *data)
 {
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
-    uc->handle_reset   = usb_xid_handle_reset;
+    uc->handle_reset = usb_xid_handle_reset;
     uc->handle_control = usb_xid_steel_battalion_handle_control;
-    uc->handle_data    = usb_xid_steel_battalion_handle_data;
+    uc->handle_data = usb_xid_steel_battalion_handle_data;
     // uc->handle_destroy = usb_xid_handle_destroy;
-    uc->handle_attach  = usb_desc_attach;
+    uc->handle_attach = usb_desc_attach;
 }
 
 static void usb_steel_battalion_realize(USBDevice *dev, Error **errp)
@@ -371,11 +386,10 @@ static const VMStateDescription vmstate_usb_sb = {
     .name = TYPE_USB_XID_STEEL_BATTALION,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
-        VMSTATE_USB_DEVICE(dev, USBXIDSteelBattalionState),
-        // FIXME
-        VMSTATE_END_OF_LIST()
-    },
+    .fields =
+        (VMStateField[]){ VMSTATE_USB_DEVICE(dev, USBXIDSteelBattalionState),
+                          // FIXME
+                          VMSTATE_END_OF_LIST() },
 };
 
 static void usb_steel_battalion_class_initfn(ObjectClass *klass, void *data)
@@ -383,22 +397,22 @@ static void usb_steel_battalion_class_initfn(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
-    uc->product_desc   = "Steel Battalion Controller";
-    uc->usb_desc       = &desc_xbox_steel_battalion;
-    uc->realize        = usb_steel_battalion_realize;
-    uc->unrealize      = usb_xbox_gamepad_unrealize;
+    uc->product_desc = "Steel Battalion Controller";
+    uc->usb_desc = &desc_xbox_steel_battalion;
+    uc->realize = usb_steel_battalion_realize;
+    uc->unrealize = usb_xbox_gamepad_unrealize;
     usb_xid_steel_battalion_class_initfn(klass, data);
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
-    dc->vmsd  = &vmstate_usb_sb;
+    dc->vmsd = &vmstate_usb_sb;
     device_class_set_props(dc, xid_properties);
-    dc->desc  = "Steel Battalion Controller";
+    dc->desc = "Steel Battalion Controller";
 }
 
 static const TypeInfo usb_steel_battalion_info = {
-    .name          = TYPE_USB_XID_STEEL_BATTALION,
-    .parent        = TYPE_USB_DEVICE,
+    .name = TYPE_USB_XID_STEEL_BATTALION,
+    .parent = TYPE_USB_DEVICE,
     .instance_size = sizeof(USBXIDSteelBattalionState),
-    .class_init    = usb_steel_battalion_class_initfn,
+    .class_init = usb_steel_battalion_class_initfn,
 };
 
 static void usb_xid_register_types(void)

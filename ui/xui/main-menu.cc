@@ -165,46 +165,64 @@ void MainMenuInputView::Draw()
     // List available device drivers
     const char *driver = bound_drivers[active];
 
-    if(strcmp(driver, DRIVER_S) == 0)
+    if (strcmp(driver, DRIVER_S) == 0)
         driver = DRIVER_S_DISPLAY_NAME;
-    else if(strcmp(driver, DRIVER_STEEL_BATTALION) == 0)
+    else if (strcmp(driver, DRIVER_STEEL_BATTALION) == 0)
         driver = DRIVER_STEEL_BATTALION_DISPLAY_NAME;
-    else if(strcmp(driver, DRIVER_ARCADE_STICK) == 0)
+    else if (strcmp(driver, DRIVER_ARCADE_STICK) == 0)
         driver = DRIVER_ARCADE_STICK_DISPLAY_NAME;
 #ifdef CONFIG_USB_LIBUSB
-    else if(strcmp(driver, DRIVER_USB_PASSTHROUGH) == 0)
+    else if (strcmp(driver, DRIVER_USB_PASSTHROUGH) == 0)
         driver = DRIVER_USB_PASSTHROUGH_DISPLAY_NAME;
 #endif
     else
         driver = DRIVER_DUKE_DISPLAY_NAME;
-    
+
     ImGui::SetNextItemWidth(-FLT_MIN);
-    if (ImGui::BeginCombo("###InputDrivers", driver, ImGuiComboFlags_NoArrowButton))
-    {
+    if (ImGui::BeginCombo("###InputDrivers", driver,
+                          ImGuiComboFlags_NoArrowButton)) {
 #ifdef CONFIG_USB_LIBUSB
 #define NUM_AVAILABLE_DRIVERS 5
-        const char *available_drivers[5] = { DRIVER_DUKE, DRIVER_S, DRIVER_STEEL_BATTALION, DRIVER_ARCADE_STICK, DRIVER_USB_PASSTHROUGH };
-        const char *driver_display_names[5] = { DRIVER_DUKE_DISPLAY_NAME, DRIVER_S_DISPLAY_NAME, DRIVER_STEEL_BATTALION_DISPLAY_NAME, DRIVER_ARCADE_STICK_DISPLAY_NAME, DRIVER_USB_PASSTHROUGH_DISPLAY_NAME };
+        const char *available_drivers[5] = { DRIVER_DUKE, DRIVER_S,
+                                             DRIVER_STEEL_BATTALION,
+                                             DRIVER_ARCADE_STICK,
+                                             DRIVER_USB_PASSTHROUGH };
+        const char *driver_display_names[5] = {
+            DRIVER_DUKE_DISPLAY_NAME, DRIVER_S_DISPLAY_NAME,
+            DRIVER_STEEL_BATTALION_DISPLAY_NAME,
+            DRIVER_ARCADE_STICK_DISPLAY_NAME,
+            DRIVER_USB_PASSTHROUGH_DISPLAY_NAME
+        };
 #else
 #define NUM_AVAILABLE_DRIVERS 4
-        const char *available_drivers[4] = { DRIVER_DUKE, DRIVER_S, DRIVER_STEEL_BATTALION, DRIVER_ARCADE_STICK };
-        const char *driver_display_names[4] = { DRIVER_DUKE_DISPLAY_NAME, DRIVER_S_DISPLAY_NAME, DRIVER_STEEL_BATTALION_DISPLAY_NAME, DRIVER_ARCADE_STICK_DISPLAY_NAME };
+        const char *available_drivers[4] = { DRIVER_DUKE, DRIVER_S,
+                                             DRIVER_STEEL_BATTALION,
+                                             DRIVER_ARCADE_STICK };
+        const char *driver_display_names[4] = {
+            DRIVER_DUKE_DISPLAY_NAME, DRIVER_S_DISPLAY_NAME,
+            DRIVER_STEEL_BATTALION_DISPLAY_NAME,
+            DRIVER_ARCADE_STICK_DISPLAY_NAME
+        };
 #endif
         bool is_selected = false;
-        for(int i = 0; i < NUM_AVAILABLE_DRIVERS; i++) {
-            const char* iter = driver_display_names[i];
+        for (int i = 0; i < NUM_AVAILABLE_DRIVERS; i++) {
+            const char *iter = driver_display_names[i];
             is_selected = strcmp(driver, iter) == 0;
             ImGui::PushID(iter);
             if (ImGui::Selectable(iter, is_selected)) {
-                for(int j = 0; j < NUM_AVAILABLE_DRIVERS; j++) {
-                    if(iter == driver_display_names[j])
+                for (int j = 0; j < NUM_AVAILABLE_DRIVERS; j++) {
+                    if (iter == driver_display_names[j])
                         bound_drivers[active] = available_drivers[j];
                 }
-                if(strcmp(bound_drivers[active], DRIVER_USB_PASSTHROUGH) == 0) {
+                if (strcmp(bound_drivers[active], DRIVER_USB_PASSTHROUGH) ==
+                    0) {
                     xemu_input_bind(active, NULL, 1);
                 } else {
                     xemu_input_bind_passthrough(active, NULL, 1);
-                    xemu_input_bind(active, bound_controllers[active], 1); // Just in case we're switching from one driver to another and not back from USB passthrough
+                    xemu_input_bind(
+                        active, bound_controllers[active],
+                        1); // Just in case we're switching from one driver to
+                            // another and not back from USB passthrough
                 }
             }
             if (is_selected) {
@@ -230,14 +248,15 @@ void MainMenuInputView::Draw()
     const char *name;
     if (bound_state != NULL) {
         name = bound_state->name;
-    } else if(bound_device != NULL) {
+    } else if (bound_device != NULL) {
         name = bound_device->name;
     } else {
         name = not_connected;
     }
 
     ImGui::SetNextItemWidth(-FLT_MIN);
-    if (ImGui::BeginCombo("###InputDevices", name, ImGuiComboFlags_NoArrowButton)) {
+    if (ImGui::BeginCombo("###InputDevices", name,
+                          ImGuiComboFlags_NoArrowButton)) {
         // Handle "Not connected"
         bool is_selected = bound_state == NULL && bound_device == NULL;
         if (ImGui::Selectable(not_connected, is_selected)) {
@@ -250,19 +269,20 @@ void MainMenuInputView::Draw()
         }
 
         // Handle all available input devices
-        if(strcmp(bound_drivers[active], DRIVER_USB_PASSTHROUGH) == 0) {
+        if (strcmp(bound_drivers[active], DRIVER_USB_PASSTHROUGH) == 0) {
             LibusbDevice *iter;
-            QTAILQ_FOREACH(iter, &available_libusb_devices, entry) {
+            QTAILQ_FOREACH (iter, &available_libusb_devices, entry) {
                 is_selected = bound_device == iter;
                 ImGui::PushID(iter);
                 const char *selectable_label = iter->name;
                 char buf[128];
                 if (iter->bound >= 0) {
-                    snprintf(buf, sizeof(buf), "%s (Port %d)", iter->name, iter->bound+1);
+                    snprintf(buf, sizeof(buf), "%s (Port %d)", iter->name,
+                             iter->bound + 1);
                     selectable_label = buf;
                 }
                 if (ImGui::Selectable(selectable_label, is_selected)) {
-                    if(bound_state != NULL)
+                    if (bound_state != NULL)
                         xemu_input_bind(active, NULL, 1);
                     xemu_input_bind_passthrough(active, iter, 1);
                     bound_device = iter;
@@ -274,24 +294,25 @@ void MainMenuInputView::Draw()
             }
         } else {
             ControllerState *iter;
-            QTAILQ_FOREACH(iter, &available_controllers, entry) {
+            QTAILQ_FOREACH (iter, &available_controllers, entry) {
                 is_selected = bound_state == iter;
                 ImGui::PushID(iter);
                 const char *selectable_label = iter->name;
                 char buf[128];
                 if (iter->bound >= 0) {
-                    snprintf(buf, sizeof(buf), "%s (Port %d)", iter->name, iter->bound+1);
+                    snprintf(buf, sizeof(buf), "%s (Port %d)", iter->name,
+                             iter->bound + 1);
                     selectable_label = buf;
                 }
                 if (ImGui::Selectable(selectable_label, is_selected)) {
                     xemu_input_bind(active, iter, 1);
 
-                    // FIXME: We want to bind the XMU here, but we can't because we
-                    // just unbound it and we need to wait for Qemu to release the
-                    // file
+                    // FIXME: We want to bind the XMU here, but we can't because
+                    // we just unbound it and we need to wait for Qemu to
+                    // release the file
 
-                    // If we previously had no controller connected, we can rebind
-                    // the XMU
+                    // If we previously had no controller connected, we can
+                    // rebind the XMU
                     if (bound_state == NULL)
                         xemu_input_rebind_xmu(active);
 
@@ -327,7 +348,7 @@ void MainMenuInputView::Draw()
     }
 
     ImVec2 cur = ImGui::GetCursorPos();
-    
+
     ImVec2 controller_display_size;
     if (ImGui::GetContentRegionMax().x < controller_width*g_viewport_mgr.m_scale) {
         controller_display_size.x = ImGui::GetContentRegionMax().x;
@@ -357,9 +378,10 @@ void MainMenuInputView::Draw()
         ImGui::SetCursorPosY(cur.y + (controller_display_size.y-dim.y)/2);
         ImGui::Text("%s", msg);
     } else if (bound_device) {
-        const char *msg = "Disclaimer: USB Passthrough devices only update\nwhen a request is received from the kernel";
+        const char *msg = "Disclaimer: USB Passthrough devices only "
+                          "update\nwhen a request is received from the kernel";
         ImVec2 dim = ImGui::CalcTextSize(msg);
-        ImGui::SetCursorPosX(cur.x + (controller_display_size.x-dim.x)/2);
+        ImGui::SetCursorPosX(cur.x + (controller_display_size.x - dim.x) / 2);
         ImGui::SetCursorPosY(cur.y + 5);
         ImGui::Text("%s", msg);
     }
@@ -369,11 +391,13 @@ void MainMenuInputView::Draw()
     ImGui::PopFont();
     ImGui::SetCursorPos(pos);
 
-    bool isUsbPassthrough = strcmp(bound_drivers[active], DRIVER_USB_PASSTHROUGH) == 0;
+    bool isUsbPassthrough =
+        strcmp(bound_drivers[active], DRIVER_USB_PASSTHROUGH) == 0;
 
     if (bound_state && !isUsbPassthrough) {
-        bool hasInternalHub = strcmp(bound_drivers[active], DRIVER_STEEL_BATTALION) != 0;
-        if(hasInternalHub) {
+        bool hasInternalHub =
+            strcmp(bound_drivers[active], DRIVER_STEEL_BATTALION) != 0;
+        if (hasInternalHub) {
             SectionTitle("Expansion Slots");
             // Begin a 2-column layout to render the expansion slots
             ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,
@@ -383,20 +407,22 @@ void MainMenuInputView::Draw()
             xmu_fbo->Target();
             id = (ImTextureID)(intptr_t)xmu_fbo->Texture();
 
-            const char *img_file_filters = ".img Files\0*.img\0All Files\0*.*\0";
+            const char *img_file_filters =
+                ".img Files\0*.img\0All Files\0*.*\0";
             const char *comboLabels[2] = { "###ExpansionSlotA",
-                                        "###ExpansionSlotB" };
+                                           "###ExpansionSlotB" };
             for (int i = 0; i < 2; i++) {
                 // Display a combo box to allow the user to choose the type of
                 // peripheral they want to use
                 enum peripheral_type selected_type =
                     bound_state->peripheral_types[i];
-                const char *peripheral_type_names[2] = { "None", "Memory Unit" };
+                const char *peripheral_type_names[2] = { "None",
+                                                         "Memory Unit" };
                 const char *selected_peripheral_type =
                     peripheral_type_names[selected_type];
                 ImGui::SetNextItemWidth(-FLT_MIN);
                 if (ImGui::BeginCombo(comboLabels[i], selected_peripheral_type,
-                                    ImGuiComboFlags_NoArrowButton)) {
+                                      ImGuiComboFlags_NoArrowButton)) {
                     // Handle all available peripheral types
                     for (int j = 0; j < 2; j++) {
                         bool is_selected = selected_type == j;
@@ -418,7 +444,8 @@ void MainMenuInputView::Draw()
                                 bound_state->peripherals[i] = NULL;
                             }
 
-                            // Change the peripheral type to the newly selected type
+                            // Change the peripheral type to the newly selected
+                            // type
                             bound_state->peripheral_types[i] =
                                 (enum peripheral_type)j;
 
@@ -427,11 +454,12 @@ void MainMenuInputView::Draw()
                                 bound_state->peripherals[i] =
                                     g_malloc(sizeof(XmuState));
                                 memset(bound_state->peripherals[i], 0,
-                                    sizeof(XmuState));
+                                       sizeof(XmuState));
                             }
 
                             xemu_save_peripheral_settings(
-                                active, i, bound_state->peripheral_types[i], NULL);
+                                active, i, bound_state->peripheral_types[i],
+                                NULL);
                         }
 
                         if (is_selected) {
@@ -449,9 +477,9 @@ void MainMenuInputView::Draw()
                 ImGui::SetCursorPosX(
                     ImGui::GetCursorPosX() +
                     (int)((ImGui::GetColumnWidth() -
-                        xmu_w * g_viewport_mgr.m_scale -
-                        2 * port_padding * g_viewport_mgr.m_scale) /
-                        2));
+                           xmu_w * g_viewport_mgr.m_scale -
+                           2 * port_padding * g_viewport_mgr.m_scale) /
+                          2));
 
                 selected_type = bound_state->peripheral_types[i];
                 if (selected_type == PERIPHERAL_XMU) {
@@ -472,17 +500,18 @@ void MainMenuInputView::Draw()
                         xmu_display_size.x = ImGui::GetContentRegionMax().x / 2;
                         xmu_display_size.y = xmu_display_size.x * xmu_h / xmu_w;
                     } else {
-                        xmu_display_size = ImVec2(xmu_w * g_viewport_mgr.m_scale,
-                                                xmu_h * g_viewport_mgr.m_scale);
+                        xmu_display_size =
+                            ImVec2(xmu_w * g_viewport_mgr.m_scale,
+                                   xmu_h * g_viewport_mgr.m_scale);
                     }
 
                     ImGui::SetCursorPosX(
                         ImGui::GetCursorPosX() +
                         (int)((ImGui::GetColumnWidth() - xmu_display_size.x) /
-                            2.0));
+                              2.0));
 
                     ImGui::Image(id, xmu_display_size, ImVec2(0.5f * i, 1),
-                                ImVec2(0.5f * (i + 1), 0));
+                                 ImVec2(0.5f * (i + 1), 0));
                     ImVec2 pos = ImGui::GetCursorPos();
 
                     ImGui::SetCursorPos(pos);
@@ -502,7 +531,8 @@ void MainMenuInputView::Draw()
                             } else {
                                 // Show alert message
                                 char *msg = g_strdup_printf(
-                                    "Unable to create XMU image at %s", new_path);
+                                    "Unable to create XMU image at %s",
+                                    new_path);
                                 xemu_queue_error_message(msg);
                                 g_free(msg);
                             }
@@ -518,7 +548,8 @@ void MainMenuInputView::Draw()
                         if (strlen(xmu_port_path) == 0) {
                             xemu_input_unbind_xmu(active, i);
                         } else {
-                            xemu_input_bind_xmu(active, i, xmu_port_path, false);
+                            xemu_input_bind_xmu(active, i, xmu_port_path,
+                                                false);
                         }
                     }
                     g_free((void *)xmu_port_path);

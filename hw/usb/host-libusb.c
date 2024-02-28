@@ -56,8 +56,8 @@
 #include "trace.h"
 
 #include "hw/qdev-properties.h"
-#include "hw/usb.h"
 #include "hw/usb-passthrough.h"
+#include "hw/usb.h"
 
 /* ------------------------------------------------------------------------ */
 
@@ -483,15 +483,15 @@ static void LIBUSB_CALL usb_host_req_complete_data(struct libusb_transfer *xfer)
     if (r->in && xfer->actual_length) {
         usb_packet_copy(r->p, r->buffer, xfer->actual_length);
         LibusbDevice *dev = find_libusb_device(r->host->bus_num, r->host->port);
-        if(dev != NULL) {
-            if(dev->buffer == NULL)
-                dev->buffer = g_malloc(xfer->actual_length);
-            else if(dev->buf_len < xfer->actual_length) {
-                g_free(dev->buffer);
-                dev->buffer = g_malloc(xfer->actual_length);
-            }
-            dev->buf_len = xfer->actual_length;
-            memcpy(dev->buffer, r->buffer, xfer->actual_length);
+        if (dev != NULL) {
+                if (dev->buffer == NULL)
+                    dev->buffer = g_malloc(xfer->actual_length);
+                else if (dev->buf_len < xfer->actual_length) {
+                    g_free(dev->buffer);
+                    dev->buffer = g_malloc(xfer->actual_length);
+                }
+                dev->buf_len = xfer->actual_length;
+                memcpy(dev->buffer, r->buffer, xfer->actual_length);
         }
     }
     trace_usb_host_req_complete(s->bus_num, s->addr, r->p,
@@ -1606,10 +1606,9 @@ static void usb_host_handle_data(USBDevice *udev, USBPacket *p)
             usb_packet_copy(p, r->buffer, p->iov.size);
         }
         ep = p->ep->nr | (r->in ? USB_DIR_IN : 0);
-        libusb_fill_interrupt_transfer(r->xfer, s->dh, ep,
-                                    r->buffer, p->iov.size,
-                                    usb_host_req_complete_data, r,
-                                    INTR_TIMEOUT);
+        libusb_fill_interrupt_transfer(r->xfer, s->dh, ep, r->buffer,
+                                       p->iov.size, usb_host_req_complete_data,
+                                       r, INTR_TIMEOUT);
         break;
     case USB_ENDPOINT_XFER_ISOC:
         if (p->pid == USB_TOKEN_IN) {

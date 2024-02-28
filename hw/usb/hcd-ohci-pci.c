@@ -88,7 +88,7 @@ static void usb_ohci_exit(PCIDevice *dev)
     ohci_bus_stop(s);
 
     USBActivePacket *iter;
-    QTAILQ_FOREACH(iter, &s->active_packets, next) {
+    QTAILQ_FOREACH (iter, &s->active_packets, next) {
         if (iter->async_td) {
             usb_cancel_packet(&iter->usb_packet);
             iter->async_td = 0;

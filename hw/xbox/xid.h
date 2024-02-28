@@ -24,27 +24,27 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/qdev-properties.h"
-#include "migration/vmstate.h"
-#include "sysemu/sysemu.h"
 #include "hw/hw.h"
-#include "ui/console.h"
+#include "hw/qdev-properties.h"
 #include "hw/usb.h"
 #include "hw/usb/desc.h"
 #include "hw/xid.h"
+#include "migration/vmstate.h"
+#include "sysemu/sysemu.h"
+#include "ui/console.h"
 
-//#define DEBUG_XID
+// #define DEBUG_XID
 #ifdef DEBUG_XID
 #define DPRINTF printf
 #else
 #define DPRINTF(...)
 #endif
 
-#define USB_CLASS_XID  0x58
-#define USB_DT_XID     0x42
+#define USB_CLASS_XID 0x58
+#define USB_DT_XID 0x42
 
-#define HID_GET_REPORT       0x01
-#define HID_SET_REPORT       0x09
+#define HID_GET_REPORT 0x01
+#define HID_SET_REPORT 0x09
 #define XID_GET_CAPABILITIES 0x01
 
 #define XID_DEVICETYPE_GAMEPAD 0x01
@@ -69,32 +69,32 @@ enum {
 extern const USBDescStrings desc_strings;
 
 typedef struct XIDDesc {
-    uint8_t  bLength;
-    uint8_t  bDescriptorType;
+    uint8_t bLength;
+    uint8_t bDescriptorType;
     uint16_t bcdXid;
-    uint8_t  bType;
-    uint8_t  bSubType;
-    uint8_t  bMaxInputReportSize;
-    uint8_t  bMaxOutputReportSize;
+    uint8_t bType;
+    uint8_t bSubType;
+    uint8_t bMaxInputReportSize;
+    uint8_t bMaxOutputReportSize;
     uint16_t wAlternateProductIds[4];
 } QEMU_PACKED XIDDesc;
 
 typedef struct USBXIDGamepadState {
-    USBDevice               dev;
-    USBEndpoint            *intr;
-    const XIDDesc          *xid_desc;
-    XIDGamepadReport        in_state;
-    XIDGamepadReport        in_state_capabilities;
-    XIDGamepadOutputReport  out_state;
-    XIDGamepadOutputReport  out_state_capabilities;
-    uint8_t                 device_index;
+    USBDevice dev;
+    USBEndpoint *intr;
+    const XIDDesc *xid_desc;
+    XIDGamepadReport in_state;
+    XIDGamepadReport in_state_capabilities;
+    XIDGamepadOutputReport out_state;
+    XIDGamepadOutputReport out_state_capabilities;
+    uint8_t device_index;
 } USBXIDGamepadState;
 
 void update_input(USBXIDGamepadState *s);
 void update_output(USBXIDGamepadState *s);
 void usb_xid_handle_reset(USBDevice *dev);
-void usb_xid_handle_control(USBDevice *dev, USBPacket *p,
-               int request, int value, int index, int length, uint8_t *data);
+void usb_xid_handle_control(USBDevice *dev, USBPacket *p, int request,
+                            int value, int index, int length, uint8_t *data);
 void usb_xbox_gamepad_unrealize(USBDevice *dev);
 
 #if 0
