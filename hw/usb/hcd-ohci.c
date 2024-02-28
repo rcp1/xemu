@@ -917,7 +917,7 @@ static int ohci_service_td(OHCIState *ohci, struct ohci_ed *ed)
         }
     }
 
-    // A packet for this endpoint doesn't exist yet. Make one
+    /* A packet for this endpoint doesn't exist yet. Make one */
     if (packet == NULL) {
         packet = g_malloc(sizeof(USBActivePacket));
         usb_packet_init(&packet->usb_packet);
@@ -1829,7 +1829,6 @@ static void ohci_child_detach(USBPort *port1, USBDevice *dev)
             if (iter->async_td && usb_packet_is_inflight(&iter->usb_packet) &&
                 iter->usb_packet.ep->dev == dev) {
                 usb_cancel_packet(&iter->usb_packet);
-                iter->async_td = 0;
             }
 
             QTAILQ_REMOVE(&ohci->active_packets, iter, next);
@@ -1971,9 +1970,7 @@ void usb_ohci_init(OHCIState *ohci, DeviceState *dev, uint32_t num_ports,
 
     ohci->name = object_get_typename(OBJECT(dev));
 
-    // Inialize the QTAILQ_HEAD. QTAILQ_HEAD_INITIALIZER doesn't work here
-    ohci->active_packets.tqh_circ.tql_next = NULL;
-    ohci->active_packets.tqh_circ.tql_prev = &(ohci->active_packets).tqh_circ;
+    QTAILQ_INIT(&ohci->active_packets);
 
     ohci->eof_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
                                    ohci_frame_boundary, ohci);
@@ -2064,41 +2061,47 @@ const VMStateDescription vmstate_ohci_state = {
     .name = "ohci-core",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]){ VMSTATE_INT64(sof_time, OHCIState),
-                                VMSTATE_UINT32(ctl, OHCIState),
-                                VMSTATE_UINT32(status, OHCIState),
-                                VMSTATE_UINT32(intr_status, OHCIState),
-                                VMSTATE_UINT32(intr, OHCIState),
-                                VMSTATE_UINT32(hcca, OHCIState),
-                                VMSTATE_UINT32(ctrl_head, OHCIState),
-                                VMSTATE_UINT32(ctrl_cur, OHCIState),
-                                VMSTATE_UINT32(bulk_head, OHCIState),
-                                VMSTATE_UINT32(bulk_cur, OHCIState),
-                                VMSTATE_UINT32(per_cur, OHCIState),
-                                VMSTATE_UINT32(done, OHCIState),
-                                VMSTATE_INT32(done_count, OHCIState),
-                                VMSTATE_UINT16(fsmps, OHCIState),
-                                VMSTATE_UINT8(fit, OHCIState),
-                                VMSTATE_UINT16(fi, OHCIState),
-                                VMSTATE_UINT8(frt, OHCIState),
-                                VMSTATE_UINT16(frame_number, OHCIState),
-                                VMSTATE_UINT16(padding, OHCIState),
-                                VMSTATE_UINT32(pstart, OHCIState),
-                                VMSTATE_UINT32(lst, OHCIState),
-                                VMSTATE_UINT32(rhdesc_a, OHCIState),
-                                VMSTATE_UINT32(rhdesc_b, OHCIState),
-                                VMSTATE_UINT32(rhstatus, OHCIState),
-                                VMSTATE_STRUCT_ARRAY(
-                                    rhport, OHCIState, OHCI_MAX_PORTS, 0,
-                                    vmstate_ohci_state_port, OHCIPort),
-                                VMSTATE_UINT32(hstatus, OHCIState),
-                                VMSTATE_UINT32(hmask, OHCIState),
-                                VMSTATE_UINT32(hreset, OHCIState),
-                                VMSTATE_UINT32(htest, OHCIState),
-                                VMSTATE_UINT32(old_ctl, OHCIState),
-                                VMSTATE_END_OF_LIST() },
-    .subsections =
-        (const VMStateDescription *[]){ &vmstate_ohci_eof_timer, NULL }
+    .fields = (VMStateField[]) {
+        VMSTATE_INT64(sof_time, OHCIState),
+        VMSTATE_UINT32(ctl, OHCIState),
+        VMSTATE_UINT32(status, OHCIState),
+        VMSTATE_UINT32(intr_status, OHCIState),
+        VMSTATE_UINT32(intr, OHCIState),
+        VMSTATE_UINT32(hcca, OHCIState),
+        VMSTATE_UINT32(ctrl_head, OHCIState),
+        VMSTATE_UINT32(ctrl_cur, OHCIState),
+        VMSTATE_UINT32(bulk_head, OHCIState),
+        VMSTATE_UINT32(bulk_cur, OHCIState),
+        VMSTATE_UINT32(per_cur, OHCIState),
+        VMSTATE_UINT32(done, OHCIState),
+        VMSTATE_INT32(done_count, OHCIState),
+        VMSTATE_UINT16(fsmps, OHCIState),
+        VMSTATE_UINT8(fit, OHCIState),
+        VMSTATE_UINT16(fi, OHCIState),
+        VMSTATE_UINT8(frt, OHCIState),
+        VMSTATE_UINT16(frame_number, OHCIState),
+        VMSTATE_UINT16(padding, OHCIState),
+        VMSTATE_UINT32(pstart, OHCIState),
+        VMSTATE_UINT32(lst, OHCIState),
+        VMSTATE_UINT32(rhdesc_a, OHCIState),
+        VMSTATE_UINT32(rhdesc_b, OHCIState),
+        VMSTATE_UINT32(rhstatus, OHCIState),
+        VMSTATE_STRUCT_ARRAY(rhport, OHCIState, OHCI_MAX_PORTS, 0,
+                             vmstate_ohci_state_port, OHCIPort),
+        VMSTATE_UINT32(hstatus, OHCIState),
+        VMSTATE_UINT32(hmask, OHCIState),
+        VMSTATE_UINT32(hreset, OHCIState),
+        VMSTATE_UINT32(htest, OHCIState),
+        VMSTATE_UINT32(old_ctl, OHCIState),
+        VMSTATE_UINT8_ARRAY(usb_buf, OHCIState, 8192),
+        VMSTATE_UINT32(async_td, OHCIState),
+        VMSTATE_BOOL(async_complete, OHCIState),
+        VMSTATE_END_OF_LIST()
+    },
+    .subsections = (const VMStateDescription*[]) {
+        &vmstate_ohci_eof_timer,
+        NULL
+    }
 };
 
 static Property ohci_sysbus_properties[] = {
