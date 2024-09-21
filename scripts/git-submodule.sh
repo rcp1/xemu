@@ -93,7 +93,7 @@ update)
         exit 0
     fi
 
-    $GIT submodule update --init $modules 1>/dev/null
+    $GIT submodule update --init --recursive $modules 1>/dev/null
     test $? -ne 0 && update_error "failed to update modules"
 
     $GIT submodule status $modules > "${substat}"
